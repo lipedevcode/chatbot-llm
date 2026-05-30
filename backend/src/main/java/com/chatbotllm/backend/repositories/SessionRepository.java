@@ -1,4 +1,4 @@
-package com.chatbotllm.backend.repository;
+package com.chatbotllm.backend.repositories;
 
 import com.chatbotllm.backend.model.Session;
 import org.springframework.data.jpa.repository.JpaRepository;
