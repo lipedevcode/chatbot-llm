@@ -1,6 +1,6 @@
 package com.chatbotllm.backend.utils;
 
-import com.chatbotllm.backend.model.Session;
+import com.chatbotllm.backend.data.model.Session;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ChatMessageDeserializer;
@@ -13,7 +13,6 @@ import java.util.List;
 public class PersistentChatMemoryStore implements ChatMemoryStore {
 
     private final SessionRepository sessionRepository;
-
 
     public PersistentChatMemoryStore(SessionRepository sessionRepository) {
         this.sessionRepository = sessionRepository;
@@ -45,7 +44,7 @@ public class PersistentChatMemoryStore implements ChatMemoryStore {
     @Transactional
     public void deleteMessages(Object memoryId) {
         Session session = sessionRepository.findById((Long) memoryId).orElseThrow(
-                () -> new RuntimeException("Erro: session_id #" + memoryId + " não encontrado")
+                () -> new RuntimeException("Session #" + memoryId + " não encontrado")
         );
         sessionRepository.delete(session);
     }
