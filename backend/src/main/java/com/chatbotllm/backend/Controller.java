@@ -37,4 +37,12 @@ public class Controller {
                 .ok()
                 .body(this.historyService.getHistory(id));
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<Object> getAllHistories() {
+        return ResponseEntity
+                .ok()
+                .body(this.historyService.getAllHistories());
+    }
+
 }
