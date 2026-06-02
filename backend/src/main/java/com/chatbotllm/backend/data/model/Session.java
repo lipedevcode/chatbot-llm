@@ -1,4 +1,4 @@
-package com.chatbotllm.backend.model;
+package com.chatbotllm.backend.data.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -13,8 +13,9 @@ public class Session {
 
     @Id
     @Column(name= "memory_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long memoryId;
 
-    @Column(name= "messages", nullable = false, columnDefinition = "TEXT")
+    @Column(name= "messages", columnDefinition = "TEXT")
     private String messages;
 }
