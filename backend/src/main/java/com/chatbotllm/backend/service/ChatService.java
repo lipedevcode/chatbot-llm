@@ -20,7 +20,7 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 public class ChatService {
 
-    @Value("${API_KEY_GEMINI}")
+    @Value("${gemini.api.key}")
     private String GEMINI_API_KEY;
 
     @Value("${gemini.openai.url}")
