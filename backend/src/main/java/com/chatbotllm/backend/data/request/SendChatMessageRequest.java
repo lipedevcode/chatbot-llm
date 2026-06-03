@@ -1,11 +1,9 @@
 package com.chatbotllm.backend.data.request;
 
 import lombok.Data;
-import lombok.NonNull;
 
 @Data
-public class RequestSendChatMessage {
+public class SendChatMessageRequest {
     private Long historyId;
-    @NonNull
     private String userMessage;
 }

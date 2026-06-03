@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ResponseSendChatMessage {
+public class SendChatMessageResponse {
     private History history;
     private String aiMessage;
 }
