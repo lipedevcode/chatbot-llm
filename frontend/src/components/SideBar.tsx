@@ -4,7 +4,6 @@ import {
   BookOpen,
   Settings2,
   Briefcase,
-  History,
   Star,
   Settings,
   HelpCircle,
@@ -12,8 +11,15 @@ import {
   ChevronDown,
   SquarePen,
 } from "lucide-react";
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 
+import { mockHistoryList } from "../mocks/historyMock";
+
+
+const extractTitle = (text: string) => { 
+ return text.slice(0,20) + "..."
+
+}
 const Logo = () => (
   <div className="flex items-center gap-2.5">
     <div className="flex items-end gap-0.5">
@@ -32,18 +38,9 @@ const navItems = [
   { icon: BookOpen, label: "Funcionalidade" },
   { icon: Settings2, label: "Funcionalidade" },
   { icon: Briefcase, label: "Funcionalidade" },
-  { icon: History, label: "Funcionalidade" },
   { icon: Star, label: "Funcionalidade" },
   { icon: Settings, label: "Funcionalidade" },
   { icon: HelpCircle, label: "Funcionalidade" },
-];
-
-const conversations = [
-  "Conversa",
-  "Conversa",
-  "Conversa",
-  "Conversa",
-  "Conversa",
 ];
 
 const SideBar = () => {
@@ -93,17 +90,17 @@ const SideBar = () => {
           Conversas
         </p>
         <div className="flex flex-col gap-0.5">
-          {conversations.map((c, i) => (
+          {mockHistoryList.map((history, i) => (
             <Link
               to={`/chat/${i}`}
-              key={i}
               className="cursor-pointer flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground-secondary hover:bg-foreground/5 hover:text-foreground transition-colors text-left"
+              key={i}
             >
               <MessageCircle
                 size={15}
                 className="shrink-0 text-foreground-muted"
               />
-              {c}
+              {extractTitle(history.prompts![0].text)}
             </Link>
           ))}
         </div>
