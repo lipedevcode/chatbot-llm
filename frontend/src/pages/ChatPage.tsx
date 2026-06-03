@@ -2,8 +2,6 @@ import { useParams } from "react-router-dom";
 
 const ChatPage = () => {
   const { chatId } = useParams();
-
-  console.log(chatId);
   if (!chatId) {
     return (
       <div>
