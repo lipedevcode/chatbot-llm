@@ -11,15 +11,13 @@ import {
   ChevronDown,
   SquarePen,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
 import { mockHistoryList } from "../mocks/historyMock";
 
-
-const extractTitle = (text: string) => { 
- return text.slice(0,20) + "..."
-
-}
+const extractTitle = (text: string) => {
+  return text.slice(0, 20) + "...";
+};
 const Logo = () => (
   <div className="flex items-center gap-2.5">
     <div className="flex items-end gap-0.5">
@@ -45,24 +43,29 @@ const navItems = [
 
 const SideBar = () => {
   const [activeNav, setActiveNav] = useState<number | null>(null);
-
+  const { chatId } = useParams();
   return (
     <aside className="flex flex-col h-screen w-64 bg-sidebar border-r border-border px-4 py-5 select-none">
       {/* Logo + edit icon */}
       <div className="flex items-center justify-between mb-6">
-        <Logo />
-        <button
-          aria-label="Nova conversa"
-          className="cursor-pointer text-foreground hover:text-brown-medium transition-colors"
+        <Link
+          to="/"
+          className="flex flex-row justify-between items-center w-full"
         >
-          <SquarePen size={20} strokeWidth={2.5} />
-        </button>
+          <Logo />
+          <button
+            aria-label="Nova conversa"
+            className="cursor-pointer text-foreground hover:text-brown-medium transition-colors"
+          >
+            <SquarePen size={20} strokeWidth={2.5} />
+          </button>
+        </Link>
       </div>
 
       {/* Nova Conversa button */}
       <button className="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 mb-5 rounded-xl bg-primary hover:bg-primary-hover active:bg-primary-hover text-foreground font-semibold text-sm transition-colors shadow-sm">
         <Plus size={16} strokeWidth={2.5} />
-        Nova Conversa
+        <Link to="/">Nova Conversa</Link>
       </button>
 
       {/* Nav list */}
@@ -89,11 +92,13 @@ const SideBar = () => {
         <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted px-3 mb-2">
           Conversas
         </p>
-        <div className="flex flex-col gap-0.5">
+        <div className={`flex flex-col gap-0.5`}>
           {mockHistoryList.map((history, i) => (
             <Link
               to={`/chat/${i}`}
-              className="cursor-pointer flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground-secondary hover:bg-foreground/5 hover:text-foreground transition-colors text-left"
+              className={`cursor-pointer flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground-secondary hover:bg-foreground/5 hover:text-foreground transition-colors text-left ${
+                Number(chatId) === i ? "bg-brown-light/40" : ""
+              }`}
               key={i}
             >
               <MessageCircle
