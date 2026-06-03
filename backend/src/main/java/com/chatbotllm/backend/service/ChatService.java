@@ -1,8 +1,8 @@
 package com.chatbotllm.backend.service;
 
 import com.chatbotllm.backend.data.model.History;
-import com.chatbotllm.backend.data.request.RequestSendChatMessage;
-import com.chatbotllm.backend.data.response.ResponseSendChatMessage;
+import com.chatbotllm.backend.data.request.SendChatMessageRequest;
+import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.inteface.personas.GenericAssistant;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import com.chatbotllm.backend.utils.PersistentChatMemoryStore;
@@ -33,7 +33,7 @@ public class ChatService {
     private final HistoryService historyService;
     private final InteractionService interactionService;
 
-    public ResponseSendChatMessage sendChatMessage(RequestSendChatMessage requestSendChatMessage) {
+    public SendChatMessageResponse sendChatMessage(SendChatMessageRequest sendChatMessageRequest) {
         ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
                 .maxMessages(MAX_MESSAGES_WINDOW)
@@ -51,18 +51,18 @@ public class ChatService {
                 .chatMemoryProvider(chatMemoryProvider)
                 .build();
 
-        History history = this.historyService.resolveHistory(requestSendChatMessage.getHistoryId());
+        History history = this.historyService.resolveHistory(sendChatMessageRequest.getHistoryId());
 
         if (history.getPrompts() == null)
             history.setPrompts(new ArrayList<>());
 
         Long sessionMemoryId = history.getSession().getMemoryId();
 
-        String aiMessage = genericAssistant.chat(sessionMemoryId, requestSendChatMessage.getUserMessage());
+        String aiMessage = genericAssistant.chat(sessionMemoryId, sendChatMessageRequest.getUserMessage());
 
-        this.interactionService.saveInteraction(requestSendChatMessage.getUserMessage(), aiMessage, history);
+        this.interactionService.saveInteraction(sendChatMessageRequest.getUserMessage(), aiMessage, history);
 
-        return ResponseSendChatMessage.builder()
+        return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
                 .history(history)
                 .build();

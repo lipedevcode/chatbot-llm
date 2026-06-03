@@ -1,7 +1,7 @@
 package com.chatbotllm.backend.controller;
 
-import com.chatbotllm.backend.data.request.RequestSendChatMessage;
-import com.chatbotllm.backend.data.response.ResponseSendChatMessage;
+import com.chatbotllm.backend.data.request.SendChatMessageRequest;
+import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +22,11 @@ public class ChatController {
      */
 
     @PostMapping("/message")
-    public ResponseEntity<Object> sendChatMessage(@RequestBody RequestSendChatMessage requestSendChatMessage) {
-        ResponseSendChatMessage responseSendChatMessage = this.chatService.sendChatMessage(requestSendChatMessage);
+    public ResponseEntity<Object> sendChatMessage(@RequestBody SendChatMessageRequest sendChatMessageRequest) {
+        SendChatMessageResponse sendChatMessageResponse = this.chatService.sendChatMessage(sendChatMessageRequest);
         return ResponseEntity
-                .created(URI.create("/api/v1/history/" + responseSendChatMessage.getHistory().getId()))
-                .body(responseSendChatMessage);
+                .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().getId()))
+                .body(sendChatMessageResponse);
     }
 
 }
