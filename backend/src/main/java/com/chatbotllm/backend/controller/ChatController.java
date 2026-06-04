@@ -25,7 +25,7 @@ public class ChatController {
     public ResponseEntity<Object> sendChatMessage(@RequestBody SendChatMessageRequest sendChatMessageRequest) {
         SendChatMessageResponse sendChatMessageResponse = this.chatService.sendChatMessage(sendChatMessageRequest);
         return ResponseEntity
-                .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().getId()))
+                .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().id()))
                 .body(sendChatMessageResponse);
     }
 

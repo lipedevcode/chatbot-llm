@@ -27,7 +27,6 @@ public class Prompt {
 
     @ManyToOne
     @JoinColumn(name="history_id")
-    @JsonIgnore
     private History history;
 
     @ManyToOne

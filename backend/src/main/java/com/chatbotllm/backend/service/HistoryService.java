@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.service;
 
+import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.model.Session;
 import com.chatbotllm.backend.repositories.HistoryRepository;
@@ -26,9 +27,10 @@ public class HistoryService {
                 .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
     }
 
-    public History getHistory(Long historyId) {
-        return historyRepository.findById(historyId)
+    public HistoryDto getHistory(Long historyId) {
+        History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
+        return HistoryDto.fromHistory(historyId, history.getPrompts(), history.getSession());
     }
 
     public List<History> getAllHistories() {
