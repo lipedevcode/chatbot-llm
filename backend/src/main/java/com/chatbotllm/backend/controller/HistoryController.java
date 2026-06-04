@@ -15,7 +15,7 @@ public class HistoryController {
 
     private final HistoryService historyService;
 
-    @GetMapping("{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<Object> getHistory(@PathVariable Long id) {
         return ResponseEntity
                 .ok()
