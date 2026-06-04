@@ -15,7 +15,7 @@ public class History {
     @Column(name="id")
     private Long id;
 
-    @OneToMany(mappedBy = "history")
+    @OneToMany(mappedBy = "history", fetch = FetchType.LAZY)
     private List<Prompt> prompts;
 
     @OneToOne
