@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.data.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.jspecify.annotations.Nullable;
@@ -19,12 +20,8 @@ public class Usuario implements UserDetails {
     @Column(name= "subject", nullable = false, unique = true)
     private String subject;
 
-    @OneToOne
-    @JoinColumn(name="history_id")
-    private History history;
-
-    @OneToMany(mappedBy = "usuario")
-    private List<Prompt> prompts;
+    @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
+    private List<History> histories;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

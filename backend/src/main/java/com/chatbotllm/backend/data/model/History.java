@@ -21,4 +21,8 @@ public class History {
     @OneToOne
     @JoinColumn(name="session_id", nullable=false)
     private Session session;
+
+    @ManyToOne
+    @JoinColumn(name="usuario_id")
+    private Usuario usuario;
 }
