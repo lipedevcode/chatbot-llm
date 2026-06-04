@@ -22,10 +22,10 @@ public class HistoryController {
                 .body(this.historyService.getHistory(id));
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<Object> getAllHistories() {
+    @GetMapping("/all/by-user")
+    public ResponseEntity<Object> getAllHistoriesByUser() {
         return ResponseEntity
                 .ok()
-                .body(this.historyService.getAllHistories());
+                .body(this.historyService.getAllHistoriesByUser());
     }
 }

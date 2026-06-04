@@ -3,6 +3,7 @@ package com.chatbotllm.backend.service;
 import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.model.Session;
+import com.chatbotllm.backend.data.model.Usuario;
 import com.chatbotllm.backend.repositories.HistoryRepository;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +35,12 @@ public class HistoryService {
         return HistoryDto.fromHistory(historyId, history.getPrompts(), history.getSession());
     }
 
-    public List<History> getAllHistories() {
-        return historyRepository.findAll();
+    public List<HistoryDto> getAllHistoriesByUser() {
+        Usuario usuario = this.authService.getAuthenticatedUser();
+        List<History> histories = historyRepository.findAllByUsuarioId(usuario.getId());
+        return histories.stream()
+                .map(history -> HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
+                .toList();
     }
 
     private History initializeHistoryWithSession(){
