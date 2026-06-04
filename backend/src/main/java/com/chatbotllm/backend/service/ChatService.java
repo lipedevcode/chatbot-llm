@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.service;
 
+import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.request.SendChatMessageRequest;
 import com.chatbotllm.backend.data.response.SendChatMessageResponse;
@@ -64,7 +65,7 @@ public class ChatService {
 
         return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
-                .history(history)
+                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
                 .build();
     }
 }
