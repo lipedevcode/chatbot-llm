@@ -17,6 +17,7 @@ public class HistoryService {
 
     private final HistoryRepository historyRepository;
     private final SessionRepository sessionRepository;
+    private final AuthService authService;
 
     @Transactional
     public History resolveHistory(Long historyId) {
@@ -41,6 +42,7 @@ public class HistoryService {
         Session session = sessionRepository.save(new Session());
         History history = new History();
         history.setSession(session);
+        history.setUsuario(this.authService.getAuthenticatedUser());
         return historyRepository.save(history);
     }
 

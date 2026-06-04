@@ -17,6 +17,7 @@ public class InteractionService {
     private final HistoryRepository historyRepository;
     private final PromptRepository promptRepository;
     private final ResponseRepository responseRepository;
+    private final AuthService authService;
 
     @Transactional
     public void saveInteraction(String userMessage, String aiMessage, History history) {
@@ -30,6 +31,7 @@ public class InteractionService {
                 .text(userMessage)
                 .history(history)
                 .response(response)
+                .usuario(this.authService.getAuthenticatedUser())
                 .build();
 
         promptRepository.save(prompt);
