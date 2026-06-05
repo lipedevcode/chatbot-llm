@@ -1,0 +1,43 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      CHATBOT_LLM_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-chatbot_llm}
+      CHATBOT_LLM_DB_USERNAME: ${CHATBOT_LLM_DB_USERNAME}
+      CHATBOT_LLM_DB_PASSWORD: ${CHATBOT_LLM_DB_PASSWORD}
+      API_KEY_GEMINI: ${API_KEY_GEMINI}
+      JWT_SECRET_KEY_CHATBOT_LLM: ${JWT_SECRET_KEY_CHATBOT_LLM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot_llm}
+      POSTGRES_USER: ${CHATBOT_LLM_DB_USERNAME}
+      POSTGRES_PASSWORD: ${CHATBOT_LLM_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
