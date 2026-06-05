@@ -1,6 +1,6 @@
-import type { History } from "../interfaces/database";
+import type { ChatHistory } from "../interfaces/database";
 
-export const mockHistoryList: History[] = [
+export const mockHistoryList: ChatHistory[] = [
   {
     id: 1,
     session: {
