@@ -1,20 +1,24 @@
-import { useParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import ChatInputBar from "../components/ChatInputBar.tsx";
+import WelcomeScreen from "../components/WelcomeScreen.tsx";
+import ChatHistory from "../components/ChatHistory.tsx";
 
-const ChatPage = () => {
-  const { chatId } = useParams();
-  if (!chatId) {
-    return (
-      <div>
-        <h1>Como posso ajudar ? </h1>
-      </div>
-    );
-  }
+const ChatArea = () => {
+  const location = useLocation();
+  const isRoot = location.pathname === "/";
 
   return (
-    <div>
-      <h1>Id do chat: {chatId}</h1>
+    <div className="flex flex-col h-full bg-background">
+      <div className="flex flex-col flex-1 overflow-y-auto">
+        {isRoot ? <WelcomeScreen /> : <ChatHistory />}
+      </div>
+      <ChatInputBar />
     </div>
   );
+};
+
+const ChatPage = () => {
+  return <ChatArea />;
 };
 
 export default ChatPage;
