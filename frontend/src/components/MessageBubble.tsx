@@ -1,26 +1,19 @@
 import type { Prompt } from "../interfaces/database";
+import ModelResponse from "./ModelResponse";
+import UserMessage from "./UserMessage";
 
 interface MessageBubbleProps {
   prompt: Prompt;
 }
 
 const MessageBubble = ({ prompt }: MessageBubbleProps) => (
-  <div className="flex flex-col gap-4 w-full">
-
-    {/* Pergunta do usuário */}
-    <div className="flex justify-end">
-      <p className="max-w-[70%] px-4 py-3 rounded-2xl rounded-br-sm bg-primary text-foreground text-sm leading-relaxed">
-        {prompt.text}
-      </p>
-    </div>
+  <div className="flex flex-col gap-10 w-full">
+    <UserMessage text={prompt.text} />
 
     {/* Resposta do modelo — texto solto, ocupa toda a largura */}
     {prompt.response && (
-      <p className="text-foreground text-sm leading-relaxed">
-        {prompt.response.text}
-      </p>
+      <ModelResponse response={prompt.response.text}></ModelResponse>
     )}
-
   </div>
 );
 

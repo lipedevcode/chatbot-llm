@@ -16,7 +16,7 @@ const ChatArea = () => {
         {isRoot ? (
           <WelcomeScreen />
         ) : (
-          <ChatHistory prompts={mockHistoryList[0]?.prompts ?? []}></ChatHistory>
+          <ChatHistory prompts={mockHistoryList[0].prompts ?? []}></ChatHistory>
         )}
       </div>
       <ChatInputBar />
