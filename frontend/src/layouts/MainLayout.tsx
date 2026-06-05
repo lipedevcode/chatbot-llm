@@ -4,7 +4,7 @@ import Sidebar from "../components/SideBar.tsx";
 const MainLayout = () => {
   return (
     <div className="flex h-screen">
-        <Sidebar />
+      <Sidebar />
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>

@@ -6,7 +6,7 @@ export interface Session {
   messages: string;
 }
 
-export interface History {
+export interface ChatHistory {
   id?: number | null;
   prompts?: Prompt[] | null;
   session?: Session;

@@ -1,6 +1,6 @@
-import type { History } from "../interfaces/database";
+import type { ChatHistory } from "../interfaces/database";
 
-export const mockHistoryList: History[] = [
+export const mockHistoryList: ChatHistory[] = [
   {
     id: 1,
     session: {
@@ -19,6 +19,25 @@ export const mockHistoryList: History[] = [
     },
     prompts: [
       {
+        text: "O que é React?",
+        response: { text: "React é uma biblioteca JavaScript para construir interfaces de usuário de forma declarativa e baseada em componentes." },
+      },
+      {
+        text: "O que são hooks no React?",
+        response: { text: "Hooks são funções especiais que permitem usar estado e outros recursos em componentes funcionais." },
+      },
+      {
+        text: "Como otimizar performance no React?",
+        response: { text: "Use React.memo, useMemo e useCallback para evitar re-renders desnecessários." },
+      },
+      {
+        text: "Quando usar useMemo?",
+        response: { text: "Use useMemo quando um cálculo for custoso e seus inputs raramente mudarem." },
+      },
+      {
+        text: "E useCallback?",
+        response: { text: "useCallback memoriza funções para evitar referências novas a cada render, útil ao passar callbacks para componentes filhos." },
+      },{
         text: "O que é React?",
         response: { text: "React é uma biblioteca JavaScript para construir interfaces de usuário de forma declarativa e baseada em componentes." },
       },
