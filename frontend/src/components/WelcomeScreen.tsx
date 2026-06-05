@@ -2,7 +2,7 @@ import LogoMark from "./LogoMark";
 
 const WelcomeScreen = () => (
   <div className="flex flex-col items-center justify-center flex-1 px-6 animate-fade-in">
-    <LogoMark />
+    <LogoMark size={2}></LogoMark>
 
     <h1
       className="mt-8 text-3xl font-bold text-foreground text-center leading-snug"
@@ -17,4 +17,4 @@ const WelcomeScreen = () => (
   </div>
 );
 
-export default WelcomeScreen
+export default WelcomeScreen;
