@@ -8,9 +8,9 @@ import { useHistoryById } from "../queries/HistoryQueries.ts";
 const ChatArea = () => {
   const location = useLocation();
   const isRoot = location.pathname === "/";
-  const {chatId} = useParams()
-  
-  const {data: history} = useHistoryById(Number(chatId))
+  const {chatId} = useParams();
+
+  const {data: history} = useHistoryById(Number(chatId));
   
   return (
     <div className="flex flex-col h-full bg-background">

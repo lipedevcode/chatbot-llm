@@ -29,14 +29,14 @@ export const sendMessage = async (
 // POST /api/v1/chat/signup
 // Registra um novo usuário e retorna o subject (username hash) como string.
 export const signup = async (): Promise<string> => {
-  const { data } = await api.post<string>("/api/v1/chat/signup");
+  const { data } = await api.post<string>("/api/v1/auth/signup");
   return data;
 };
 
 // GET /api/v1/chat/history/{id}
 // Retorna um histórico específico com todos os seus prompts.
 export const getHistoryById = async (id: number): Promise<ChatHistory> => {
-  const { data } = await api.get<ChatHistory>(`/api/v1/chat/history/${id}`);
+  const { data } = await api.get<ChatHistory>(`/api/v1/history/${id}`);
   return data;
 };
 
@@ -44,7 +44,7 @@ export const getHistoryById = async (id: number): Promise<ChatHistory> => {
 // Retorna todos os históricos do usuário autenticado (via token no header).
 export const getAllHistoriesByUser = async (): Promise<ChatHistory[]> => {
   const { data } = await api.get<ChatHistory[]>(
-    "/api/v1/chat/history/all/by-user"
+    "/api/v1/history/all/by-user"
   );
   return data;
 };
