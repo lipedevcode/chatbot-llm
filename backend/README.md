@@ -171,7 +171,7 @@ curl http://localhost:8080/api/v1/history/all/by-user
 
 ### `SendChatMessageResponse`
 
-```bash
+```json
 {
   "history": {
     "id": 1,
@@ -190,13 +190,42 @@ curl http://localhost:8080/api/v1/history/all/by-user
       }
     ],
     "session": {
-      "messages": "[
-          {"text":"Você é um assistente genérico","type":"SYSTEM"},
-          {"contents":[{"text":"My name is Napoleao Bonaparte","type":"TEXT"}],"type":"USER"},
-          {"text":"Hello, Napoleao Bonaparte! How can I assist you today?","toolExecutionRequests":[],"attributes":{},"type":"AI"},
-          {"contents":[{"text":"What is my name?","type":"TEXT"}],"type":"USER"},
-          {"text":"Your name is Napoleao Bonaparte. How can I help you further?","toolExecutionRequests":[],"attributes":{},"type":"AI"}
-      ]"
+      "messages": [
+        {
+          "text": "Você é um assistente genérico",
+          "type": "SYSTEM"
+        },
+        {
+          "contents": [
+            {
+              "text": "My name is Napoleao Bonaparte",
+              "type": "TEXT"
+            }
+          ],
+          "type": "USER"
+        },
+        {
+          "text": "Hello, Napoleao Bonaparte! How can I assist you today?",
+          "toolExecutionRequests": [],
+          "attributes": {},
+          "type": "AI"
+        },
+        {
+          "contents": [
+            {
+              "text": "What is my name?",
+              "type": "TEXT"
+            }
+          ],
+          "type": "USER"
+        },
+        {
+          "text": "Your name is Napoleao Bonaparte. How can I help you further?",
+          "toolExecutionRequests": [],
+          "attributes": {},
+          "type": "AI"
+        }
+      ]
     }
   },
   "aiMessage": "Your name is Napoleao Bonaparte. How can I help you further?"
@@ -324,25 +353,43 @@ A `session` armazena o **contexto atual da conversa** usando a estratégia de **
 
 **Exemplo de conteúdo `messages` (JSON):**
 
-A coluna `messages` contém um JSON que represente as últimas mensagens:
+A coluna `messages` contém um JSON que representa as últimas mensagens:
 
 ```json
 [
   {
-    "role": "user",
-    "content": "Qual é o propósito do MAX_MESSAGES_WINDOW?"
+    "text": "Você é um assistente genérico",
+    "type": "SYSTEM"
   },
   {
-    "role": "assistant",
-    "content": "O MAX_MESSAGES_WINDOW limita quantas mensagens anteriores..."
+    "contents": [
+      {
+        "text": "My name is Napoleao Bonaparte",
+        "type": "TEXT"
+      }
+    ],
+    "type": "USER"
   },
   {
-    "role": "user",
-    "content": "E como isso afeta o custo?"
+    "text": "Hello, Napoleao Bonaparte! How can I assist you today?",
+    "toolExecutionRequests": [],
+    "attributes": {},
+    "type": "AI"
   },
   {
-    "role": "assistant",
-    "content": "Quanto menos mensagens você enviar ao LLM, menos tokens..."
+    "contents": [
+      {
+        "text": "What is my name?",
+        "type": "TEXT"
+      }
+    ],
+    "type": "USER"
+  },
+  {
+    "text": "Your name is Napoleao Bonaparte. How can I help you further?",
+    "toolExecutionRequests": [],
+    "attributes": {},
+    "type": "AI"
   }
 ]
 ```
