@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -68,7 +69,7 @@ class AuthServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(
                         User.withUsername("subject-123").password("").roles().build(),
-                        null
+                        null, List.of()
                 )
         );
         when(usuarioRepository.findBySubject("subject-123")).thenReturn(Optional.of(usuario));
