@@ -38,6 +38,7 @@ public class ChatService {
         ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
                 .maxMessages(MAX_MESSAGES_WINDOW)
+                .alwaysKeepSystemMessageFirst(true)
                 .chatMemoryStore(new PersistentChatMemoryStore(sessionRepository))
                 .build();
 
