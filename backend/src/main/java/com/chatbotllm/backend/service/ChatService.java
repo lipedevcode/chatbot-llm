@@ -27,8 +27,8 @@ public class ChatService {
     @Value("${gemini.openai.url}")
     private String GEMINI_OPEN_AI_URL;
 
-
-    private final Integer MAX_MESSAGES_WINDOW = 10;
+    @Value("${max.messages.window}")
+    private Integer MAX_MESSAGES_WINDOW;
 
     private final SessionRepository sessionRepository;
     private final HistoryService historyService;
@@ -38,6 +38,7 @@ public class ChatService {
         ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
                 .maxMessages(MAX_MESSAGES_WINDOW)
+                .alwaysKeepSystemMessageFirst(true)
                 .chatMemoryStore(new PersistentChatMemoryStore(sessionRepository))
                 .build();
 
