@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import HistoryList from "./HistoryList";
 import UserFooter from "./UserFooter";
 import SidebarHeader from "./SidebarHeader";
-import FuncionalitiesLIst from "./FuncionalitiesLIst";
 import { useHistories } from "../queries/HistoryQueries";
 
 const SideBar = () => {
@@ -15,8 +14,6 @@ const SideBar = () => {
   return (
     <aside className="flex flex-col h-screen w-64 bg-sidebar border-r border-border px-4 py-5 select-none">
       <SidebarHeader></SidebarHeader>
-
-      <FuncionalitiesLIst></FuncionalitiesLIst>
 
       <HistoryList histories={histories} activeChatId={chatId} />
 
