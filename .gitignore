@@ -28,6 +28,7 @@ lerna-debug.log*
 # Variáveis de ambiente
 frontend/.env
 frontend/.env.*
+.env
 
 backend/.env
 backend/.env.*
