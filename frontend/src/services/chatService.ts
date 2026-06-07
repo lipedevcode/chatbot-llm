@@ -33,14 +33,14 @@ export const signup = async (): Promise<string> => {
   return data;
 };
 
-// GET /api/v1/chat/history/{id}
+// GET /api/v1/history/{id}
 // Retorna um histórico específico com todos os seus prompts.
 export const getHistoryById = async (id: number): Promise<ChatHistory> => {
   const { data } = await api.get<ChatHistory>(`/api/v1/history/${id}`);
   return data;
 };
 
-// GET /api/v1/chat/history/all/by-user
+// GET /api/v1/history/all/by-user
 // Retorna todos os históricos do usuário autenticado (via token no header).
 export const getAllHistoriesByUser = async (): Promise<ChatHistory[]> => {
   const { data } = await api.get<ChatHistory[]>(
