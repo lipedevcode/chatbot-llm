@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ChatInputBar from "../components/ChatInputBar.tsx";
 import WelcomeScreen from "../components/WelcomeScreen.tsx";
 import ChatHistory from "../components/ChatHistory.tsx";
+import ErrorBanner from "../components/ErrorBanner.tsx";
 import { useHistoryById, useSendMessage } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
 
@@ -15,11 +16,17 @@ const ChatArea = () => {
   const numericChatId = Number(chatId);
   const hasChatId = Number.isFinite(numericChatId);
 
-  const { data: history } = useHistoryById(hasChatId ? numericChatId : null);
-  const { mutate: send, isPending } = useSendMessage();
+  const {
+    data: history,
+    isError: isHistoryError,
+    isLoading: isHistoryLoading,
+  } = useHistoryById(hasChatId ? numericChatId : null);
+  const { mutate: send, isPending, isError: isSendError } = useSendMessage();
 
   // Mensagem do usuário exibida otimisticamente, antes da resposta da LLM chegar.
   const [pending, setPending] = useState<string | null>(null);
+  // Último texto enviado, mantido para permitir reenvio em caso de falha.
+  const [lastSent, setLastSent] = useState<string | null>(null);
 
   const prompts = history?.prompts ?? [];
 
@@ -34,8 +41,9 @@ const ChatArea = () => {
     ? [...prompts, { text: pending, response: null }]
     : prompts;
 
-  const handleSend = (text: string) => {
+  const submit = (text: string) => {
     setPending(text);
+    setLastSent(text);
     send(
       {
         historyId: hasChatId ? numericChatId : null,
@@ -49,24 +57,46 @@ const ChatArea = () => {
           }
         },
         onError: () => {
+          // Remove a bolha otimista; o texto fica em lastSent para reenvio.
           setPending(null);
         },
       },
     );
   };
 
-  const showWelcome = isRoot && !pending && prompts.length === 0;
+  const showWelcome =
+    isRoot && !pending && !isSendError && prompts.length === 0;
+
+  const renderContent = () => {
+    if (isHistoryError) {
+      return (
+        <div className="max-w-2xl mx-auto w-full px-4 py-6">
+          <ErrorBanner message="Não foi possível carregar esta conversa." />
+        </div>
+      );
+    }
+    if (showWelcome) return <WelcomeScreen />;
+    // Carregando um chat existente: evita piscar a tela de boas-vindas.
+    if (isHistoryLoading && !pending) return null;
+    return (
+      <ChatHistory prompts={displayedPrompts} isAwaitingResponse={isPending} />
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex flex-col flex-1 overflow-y-auto">
-        {showWelcome ? (
-          <WelcomeScreen />
-        ) : (
-          <ChatHistory prompts={displayedPrompts} isAwaitingResponse={isPending} />
-        )}
-      </div>
-      <ChatInputBar onSend={handleSend} isPending={isPending} />
+      <div className="flex flex-col flex-1 overflow-y-auto">{renderContent()}</div>
+
+      {isSendError && lastSent && (
+        <div className="w-full max-w-2xl mx-auto px-4 pb-2">
+          <ErrorBanner
+            message="Falha ao enviar a mensagem."
+            onRetry={() => submit(lastSent)}
+          />
+        </div>
+      )}
+
+      <ChatInputBar onSend={submit} isPending={isPending} />
     </div>
   );
 };

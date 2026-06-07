@@ -18,7 +18,8 @@ services:
       CHATBOT_LLM_DB_USERNAME: ${CHATBOT_LLM_DB_USERNAME}
       CHATBOT_LLM_DB_PASSWORD: ${CHATBOT_LLM_DB_PASSWORD}
       API_KEY_GEMINI: ${API_KEY_GEMINI}
-      JWT_SECRET_KEY_CHATBOT_LLM: ${JWT_SECRET_KEY_CHATBOT_LLM}
+      # O app espera a env CHATBOT_LLM_SECRET_KEY (ver application.properties).
+      CHATBOT_LLM_SECRET_KEY: ${JWT_SECRET_KEY_CHATBOT_LLM}
     depends_on:
       postgres:
         condition: service_healthy

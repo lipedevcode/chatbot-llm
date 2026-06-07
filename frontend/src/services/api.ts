@@ -1,8 +1,9 @@
 import axios from "axios";
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-});
+// Sem baseURL: as chamadas usam caminhos relativos (/api/...). Em dev passam pelo
+// proxy do Vite (ver vite.config.ts); em produção assumem a mesma origem do front
+// (servido atrás de um reverse-proxy). Assim evitamos cross-origin/CORS.
+export const api = axios.create();
 
 // Injeta o token em toda requisição automaticamente
 api.interceptors.request.use((config) => {
