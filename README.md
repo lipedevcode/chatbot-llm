@@ -9,6 +9,8 @@ Aplicação full-stack de chatbot com IA construída com **Spring Boot 4**, **La
 - [Funcionalidades](#funcionalidades)
 - [Tech Stack](#tech-stack)
 - [Arquitetura](#arquitetura)
+- [Diagrama de Classes](#diagrama-de-classes)
+- [Fluxo da Aplicação](#fluxo-da-aplicação)
 - [Como rodar](#como-rodar)
   - [Com Docker Compose (recomendado)](#com-docker-compose-recomendado)
   - [Localmente sem Docker](#localmente-sem-docker)
@@ -101,6 +103,139 @@ Browser
 ```
 
 O backend nunca é acessado diretamente pelo browser — todo o tráfego passa pelo Nginx, que age como reverse proxy para `/api/*`.
+
+---
+
+## Diagrama de Classes
+
+### Relacionamentos das Entidades do Backend
+
+```mermaid
+classDiagram
+  direction LR
+
+  class Usuario {
+      -int id PK
+      -string subject
+      -List~History~ histories
+  }
+  class Session {
+      -int memoryId PK
+      -string messages
+  }
+  class History {
+      -int id PK
+      -Usuario usuario
+      -Session session
+      -List~Prompt~ prompts
+  }
+  class Prompt {
+      -int id PK
+      -string text
+      -History history
+      -Usuario usuario
+      -Response response
+  }
+  class Response {
+      -int id PK
+      -string text
+  }
+
+  Usuario "1" --> "N" History : possui
+  History "1" --> "1" Session : contém
+  History "1" --> "N" Prompt : contém
+  Prompt "1" --> "1" Response : possui
+```
+### Descrição das Entidades
+
+| Entidade | Propósito |
+|----------|-----------|
+| **Usuario** | Representa um usuário anônimo identificado pelo subject do JWT |
+| **History** | Registro completo da conversa, vinculando usuário, session e prompts |
+| **Session** | Contexto de sliding window armazenado como JSON (últimas N mensagens para a IA) |
+| **Prompt** | Mensagem individual do usuário dentro de uma conversa |
+| **Response** | Resposta gerada pela IA para um prompt específico |
+
+---
+
+## Fluxo da Aplicação
+
+### Jornada Completa do Usuário
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Usuário (Browser)
+    participant FE as Frontend (React)
+    participant BE as Backend (Spring Boot)
+    participant DB as PostgreSQL
+    participant AI as Gemini API
+
+    rect rgb(255, 255, 255)
+        Note over U,AI: Fluxo de Autenticação (Usuário não autenticado)
+        U->>FE: Abre a aplicação
+        FE->>BE: POST /api/v1/auth/signup
+        BE->>DB: Cria usuário anônimo
+        BE-->>FE: Retorna token JWT
+        FE->>FE: Armazena token no localStorage
+    end
+
+    rect rgb(255, 255, 255)
+        Note over U,AI: Primeira Mensagem (historyId: null)
+        U->>FE: Digita uma mensagem
+        FE->>FE: Lê token do localStorage
+        FE->>BE: POST /api/v1/chat/message<br/>{historyId: null, userMessage: "..."}<br/>Authorization: Bearer <token>
+        BE->>BE: Valida token JWT
+        BE->>DB: Cria novo History
+        BE->>DB: Cria novo Session
+        BE->>AI: Envia mensagem + system prompt
+        AI-->>BE: Retorna resposta da IA
+        BE->>DB: Salva prompt + response
+        BE->>DB: Atualiza session messages (JSON)
+        BE-->>FE: Retorna {history, aiMessage}
+        FE->>FE: Renderiza resposta da IA (Markdown)
+    end
+
+    rect rgb(255, 255, 255)
+        Note over U,AI: Mensagens Seguintes (historyId: N)
+        U->>FE: Digita mensagem de acompanhamento
+        FE->>BE: POST /api/v1/chat/message<br/>{historyId: 1, userMessage: "..."}<br/>Authorization: Bearer <token>
+        BE->>BE: Valida token JWT
+        BE->>DB: Busca History + Session existentes
+        BE->>DB: Carrega últimas N mensagens (sliding window)
+        BE->>AI: Envia contexto + nova mensagem
+        AI-->>BE: Retorna resposta da IA
+        BE->>DB: Atualiza history + session
+        BE-->>FE: Retorna {history, aiMessage}
+        FE->>FE: Renderiza resposta da IA
+    end
+
+    rect rgb(255, 255, 255)
+        Note over U,AI: Recuperação de Histórico
+        U->>FE: Clica em conversa anterior
+        FE->>BE: GET /api/v1/history/{id}<br/>Authorization: Bearer <token>
+        BE->>DB: Consulta history por ID
+        DB-->>BE: Retorna histórico completo da conversa
+        BE-->>FE: Retorna objeto history
+        FE->>FE: Exibe histórico completo do chat
+    end
+```
+
+### Explicação do Fluxo
+
+| Etapa | Descrição |
+|-------|-----------|
+| **1. Signup** | Usuário abre a aplicação → frontend faz signup automático → backend cria usuário anônimo + JWT → token armazenado no `localStorage` |
+| **2. Primeira Mensagem** | Usuário envia mensagem com `historyId: null` → backend cria novo `History` + `Session` → envia para Gemini → salva resposta |
+| **3. Continuar Chat** | Mensagens seguintes incluem `historyId` → backend carrega sliding window da `Session` → mantém contexto |
+| **4. Visualizar Histórico** | Usuário recupera conversa completa → backend retorna `History` com todos os prompts/responses |
+
+### Conceitos-Chave
+
+- **`historyId: null`** dispara a criação de uma nova conversa (History + Session)
+- **`historyId: N`** continua uma conversa existente com contexto de sliding memory
+- **JWT Token** é armazenado uma vez no `localStorage` e enviado em cada header de requisição autenticada
+- **Sliding Window** mantém apenas as últimas N mensagens na session para o contexto da IA, enquanto o histórico completo persiste no DB
 
 ---
 
