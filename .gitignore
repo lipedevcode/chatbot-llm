@@ -1,4 +1,4 @@
-
+.claude
 backend/HELP.md
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
@@ -28,6 +28,7 @@ lerna-debug.log*
 # Variáveis de ambiente
 frontend/.env
 frontend/.env.*
+.env
 
 backend/.env
 backend/.env.*
