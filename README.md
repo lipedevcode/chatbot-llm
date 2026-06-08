@@ -65,7 +65,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant AI as Gemini API
 
-    rect rgb(230, 245, 255)
+    rect rgb(255, 255, 255)
         Note over U,AI: Fluxo de Autenticação (Usuário não autenticado)
         U->>FE: Abre a aplicação
         FE->>BE: POST /api/v1/auth/signup
@@ -74,7 +74,7 @@ sequenceDiagram
         FE->>FE: Armazena token no localStorage
     end
 
-    rect rgb(255, 245, 230)
+    rect rgb(255, 255, 255)
         Note over U,AI: Primeira Mensagem (historyId: null)
         U->>FE: Digita uma mensagem
         FE->>FE: Lê token do localStorage
@@ -90,7 +90,7 @@ sequenceDiagram
         FE->>FE: Renderiza resposta da IA (Markdown)
     end
 
-    rect rgb(230, 255, 230)
+    rect rgb(255, 255, 255)
         Note over U,AI: Mensagens Seguintes (historyId: N)
         U->>FE: Digita mensagem de acompanhamento
         FE->>BE: POST /api/v1/chat/message<br/>{historyId: 1, userMessage: "..."}<br/>Authorization: Bearer <token>
@@ -104,7 +104,7 @@ sequenceDiagram
         FE->>FE: Renderiza resposta da IA
     end
 
-    rect rgb(245, 230, 255)
+    rect rgb(255, 255, 255)
         Note over U,AI: Recuperação de Histórico
         U->>FE: Clica em conversa anterior
         FE->>BE: GET /api/v1/history/{id}<br/>Authorization: Bearer <token>
