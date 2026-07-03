@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import LogoMark from "../components/LogoMark.tsx";
-import LoginForm from "../components/LoginForm.tsx";
+import LogoMark from "../components/shared/LogoMark.tsx";
+import LoginForm from "../components/forms/LoginForm.tsx";
 
 const LoginPage = () => {
   return (

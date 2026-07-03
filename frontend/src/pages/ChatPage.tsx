@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import ChatInputBar from "../components/ChatInputBar.tsx";
-import WelcomeScreen from "../components/WelcomeScreen.tsx";
-import ChatHistory from "../components/ChatHistory.tsx";
-import ErrorBanner from "../components/ErrorBanner.tsx";
+import ChatInputBar from "../components/input/ChatInputBar.tsx";
+import WelcomeScreen from "../components/shared/WelcomeScreen.tsx";
+import ChatHistory from "../components/history/ChatHistory.tsx";
+import ErrorBanner from "../components/shared/ErrorBanner.tsx";
 import { useHistoryById, useSendMessage } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
 

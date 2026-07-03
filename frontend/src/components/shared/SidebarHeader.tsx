@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import LogoMark from "./LogoMark";
+import LogoMark from "../shared/LogoMark";
 import { SquarePen, Plus } from "lucide-react";
 
 const SidebarHeader = () => {

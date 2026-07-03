@@ -1,6 +1,6 @@
-import type { Prompt } from "../interfaces/database";
-import ModelResponse from "./ModelResponse";
-import UserMessage from "./UserMessage";
+import type { Prompt } from "../../interfaces/database";
+import ModelResponse from "../messages/ModelResponse";
+import UserMessage from "../messages/UserMessage";
 
 interface MessageBubbleProps {
   prompt: Prompt;
