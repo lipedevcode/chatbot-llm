@@ -1,5 +1,5 @@
-import type { Prompt } from "../interfaces/database";
-import MessageBubble from "./MessageBubble";
+import type { Prompt } from "../../interfaces/database";
+import MessageBubble from "../messages/MessageBubble";
 
 interface ChatHistoryProps {
   prompts: Prompt[];

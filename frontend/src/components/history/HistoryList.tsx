@@ -1,4 +1,4 @@
-import type { ChatHistory } from "../interfaces/database";
+import type { ChatHistory } from "../../interfaces/database";
 import { HistoryLink } from "./HistoryLink";
 
 interface HistoryListProps {

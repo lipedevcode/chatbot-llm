@@ -1,6 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Prompt } from "../interfaces/database";
+import type { Prompt } from "../../interfaces/database";
 
 interface HistoryLinkProps {
   activeChatId?: string;

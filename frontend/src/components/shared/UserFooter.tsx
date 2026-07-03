@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import type { Usuario } from "../interfaces/database";
+import type { Usuario } from "../../interfaces/database";
 
 interface UserFooterProps {
   usuario?: Usuario;

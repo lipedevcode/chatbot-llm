@@ -1,9 +1,9 @@
 import { useParams } from "react-router-dom";
 
-import HistoryList from "./HistoryList";
+import HistoryList from "../history/HistoryList";
 import UserFooter from "./UserFooter";
 import SidebarHeader from "./SidebarHeader";
-import { useHistories } from "../queries/HistoryQueries";
+import { useHistories } from "../../queries/HistoryQueries";
 
 const SideBar = () => {
   const { chatId } = useParams<{ chatId: string }>();
