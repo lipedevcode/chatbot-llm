@@ -1,10 +1,10 @@
 import { api } from "./api";
 import type { ChatHistory } from "../interfaces/database";
 
-
 export interface SendChatMessageRequest {
   historyId?: number | null;
   userMessage: string;
+  files?: globalThis.File[] | null;
 }
 
 export interface SendChatMessageResponse {
@@ -12,16 +12,28 @@ export interface SendChatMessageResponse {
   aiMessage: string;
 }
 
-
 // POST /api/v1/chat/message
 // Envia uma mensagem. Se historyId for null, o backend cria um novo histórico.
 // Retorna o histórico atualizado e a resposta da IA.
 export const sendMessage = async (
-  body: SendChatMessageRequest
+  body: SendChatMessageRequest,
 ): Promise<SendChatMessageResponse> => {
+
+  if (body.files == null) {
+    body.files = [];
+  }
+
+  const formData = new FormData();
+  formData.append("userMessage", body.userMessage);
+  if (body.historyId != null) {
+    formData.append("historyId", String(body.historyId));
+  }
+  body.files.forEach((file) => formData.append("files", file));
+
   const { data } = await api.post<SendChatMessageResponse>(
     "/api/v1/chat/message",
-    body
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
   );
   return data;
 };
@@ -43,8 +55,6 @@ export const getHistoryById = async (id: number): Promise<ChatHistory> => {
 // GET /api/v1/history/all/by-user
 // Retorna todos os históricos do usuário autenticado (via token no header).
 export const getAllHistoriesByUser = async (): Promise<ChatHistory[]> => {
-  const { data } = await api.get<ChatHistory[]>(
-    "/api/v1/history/all/by-user"
-  );
+  const { data } = await api.get<ChatHistory[]>("/api/v1/history/all/by-user");
   return data;
 };
