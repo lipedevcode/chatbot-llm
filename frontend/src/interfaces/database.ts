@@ -23,8 +23,14 @@ export interface Prompt {
   // mensagem otimista do usuário enquanto a resposta da LLM ainda não chegou.
   response?: Response | null;
   attachments?: Attachment[] | null;
+  files: File[];
 }
 export interface Attachment {
   name: string;
   extension: string;
+}
+
+export interface File {
+  id: string;
+  response: Response;
 }
