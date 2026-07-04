@@ -19,7 +19,7 @@ export const sendMessage = async (
 
   if (hasFiles) {
     const formData = new FormData();
-    formData.append("userMessage", body.userMessage);
+    formData.append("message", body.userMessage);
     if (body.historyId != null) {
       formData.append("historyId", String(body.historyId));
     }

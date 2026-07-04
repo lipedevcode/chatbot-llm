@@ -20,10 +20,11 @@ const MessageBubble = ({
   const attachments: Attachment[] = isOptimistic
     ? (prompt.attachments ?? [])
     : hasEmbeddedFile(prompt.text)
-      ? prompt.files.map((f) => ({
-          name: f.id.slice(0, 8),
-          extension: "arquivo",
-        }))
+      ? (prompt.files ?? []).map((f) => {
+          const parts = f.filename.split(".");
+          const extension = parts.length > 1 ? parts.pop()! : "";
+          return { name: parts.join("."), extension };
+        })
       : [];
 
   return (

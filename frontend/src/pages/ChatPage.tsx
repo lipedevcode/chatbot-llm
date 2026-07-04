@@ -8,6 +8,7 @@ import ChatHistory from "../components/history/ChatHistory.tsx";
 import ErrorBanner from "../components/shared/ErrorBanner.tsx";
 import { useHistoryById, useSendMessage } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
+import { extractUserText } from "../utils/promptutils.ts";
 
 const ChatArea = () => {
   const location = useLocation();
@@ -37,7 +38,7 @@ const ChatArea = () => {
 
   // Limpa a mensagem otimista assim que o backend devolve o prompt já respondido.
   useEffect(() => {
-    if (pending && prompts.some((p) => p.text === pending && p.response)) {
+    if (pending && prompts.some((p) => extractUserText(p.text) === pending && p.response)) {
       setPending(null);
     }
   }, [prompts, pending]);

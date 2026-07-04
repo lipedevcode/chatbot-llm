@@ -24,7 +24,7 @@ export interface Prompt {
   response?: Response | null;
   // o Atachment eh so pelo cliente
   attachments?: Attachment[] | null;
-  files: File[];
+  files?: File[];
 }
 export interface Attachment {
   name: string;
@@ -33,5 +33,5 @@ export interface Attachment {
 
 export interface File {
   id: string;
-  response: Response;
+  filename: string;
 }

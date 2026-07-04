@@ -5,6 +5,7 @@ import com.chatbotllm.backend.data.model.Prompt;
 import com.chatbotllm.backend.data.model.Response;
 import com.chatbotllm.backend.data.model.Session;
 import com.chatbotllm.backend.data.model.Usuario;
+import com.chatbotllm.backend.repositories.FileRepository;
 import com.chatbotllm.backend.repositories.HistoryRepository;
 import com.chatbotllm.backend.repositories.PromptRepository;
 import com.chatbotllm.backend.repositories.ResponseRepository;
@@ -35,13 +36,16 @@ class InteractionServiceTest {
     private ResponseRepository responseRepository;
 
     @Mock
+    private FileRepository fileRepository;
+
+    @Mock
     private AuthService authService;
 
     private InteractionService interactionService;
 
     @BeforeEach
     void setUp() {
-        interactionService = new InteractionService(historyRepository, promptRepository, responseRepository, authService);
+        interactionService = new InteractionService(historyRepository, promptRepository, responseRepository, fileRepository, authService);
     }
 
     @Test

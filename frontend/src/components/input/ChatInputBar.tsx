@@ -120,6 +120,8 @@ const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
             </button>
             <input
               type="file"
+              accept="application/pdf"
+              multiple
               ref={fileAreaRef}
               onChange={handleFileChange}
               hidden
