@@ -24,7 +24,7 @@ const MessageBubble = ({
           const filename = f.filename ?? "documento";
           const parts = filename.split(".");
           const extension = parts.length > 1 ? parts.pop()! : "";
-          return { name: parts.join(".") || filename, extension };
+          return { id: f.id, name: parts.join(".") || filename, extension };
         })
       : [];
 

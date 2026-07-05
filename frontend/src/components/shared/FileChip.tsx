@@ -4,6 +4,7 @@ export interface FileChipProps {
   name: string;
   extension: string;
   onRemove?: () => void;
+  onClick?: () => void;
 }
 
 const getFileStyle = (ext: string) => {
@@ -33,10 +34,16 @@ const getFileStyle = (ext: string) => {
   };
 };
 
-const FileChip = ({ name, extension, onRemove }: FileChipProps) => {
+const FileChip = ({ name, extension, onRemove, onClick }: FileChipProps) => {
   const { icon, color, bg } = getFileStyle(extension);
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card max-w-60">
+    <div
+      className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card max-w-60 ${onClick ? "cursor-pointer hover:bg-foreground/5 transition-colors" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+    >
       <div
         className={`shrink-0 w-7 h-7 rounded-lg ${bg} ${color} flex items-center justify-center border border-border`}
       >
