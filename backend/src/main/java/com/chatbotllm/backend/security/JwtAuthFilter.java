@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -36,16 +37,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String subject = jwtService.extractSubject(token);
 
         if (subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Usuario usuario = usuarioRepository.findByUsername(subject).orElseThrow(() -> new RuntimeException("Usuário #" + subject + "não encontrado"));
-            UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                    .username(usuario.getUsername())
-                    .password("")
-                    .roles()
-                    .build();
-            if (jwtService.isValid(token, usuario)) {
-                var authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            // Token com assinatura válida mas cujo usuário não existe mais (ex.: base
+            // recriada ou token antigo) não deve gerar 500: apenas seguimos sem autenticar,
+            // e o endpoint protegido responde 401 — permitindo ao cliente renovar o token.
+            Optional<Usuario> usuarioOpt = usuarioRepository.findByUsername(subject);
+            if (usuarioOpt.isPresent()) {
+                Usuario usuario = usuarioOpt.get();
+                UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                        .username(usuario.getUsername())
+                        .password("")
+                        .roles()
+                        .build();
+                if (jwtService.isValid(token, usuario)) {
+                    var authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
         }
 
