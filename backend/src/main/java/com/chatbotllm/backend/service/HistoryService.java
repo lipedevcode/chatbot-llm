@@ -33,7 +33,8 @@ public class HistoryService {
     public HistoryDto getHistory(Long historyId) {
         History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
-        return HistoryDto.fromHistory(historyId, history.getPrompts(), history.getSession());
+        this.validarAcessoUsuario(history);
+        return HistoryDto.fromHistory(historyId, history.getPrompts());
     }
 
     public List<HistoryDto> getAllHistoriesByUser() {
@@ -41,7 +42,7 @@ public class HistoryService {
         List<History> histories = historyRepository.findAllByUsuarioId(usuario.getId());
         return histories.stream()
                 .sorted(Comparator.comparingLong(History::getId).reversed())
-                .map(history -> HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
+                .map(history -> HistoryDto.fromHistory(history.getId(), history.getPrompts()))
                 .toList();
     }
 
@@ -53,4 +54,10 @@ public class HistoryService {
         return historyRepository.save(history);
     }
 
+    private void validarAcessoUsuario(History history){
+        Usuario usuario = this.authService.getAuthenticatedUser();
+        if (!history.getUsuario().getId().equals(usuario.getId())) {
+            throw new RuntimeException("Acesso negado ao histórico #" + history.getId());
+        }
+    }
 }

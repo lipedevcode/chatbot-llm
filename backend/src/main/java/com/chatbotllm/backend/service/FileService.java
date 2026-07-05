@@ -1,6 +1,7 @@
 package com.chatbotllm.backend.service;
 
 import com.chatbotllm.backend.data.model.File;
+import com.chatbotllm.backend.data.model.Usuario;
 import com.chatbotllm.backend.repositories.FileRepository;
 import dev.langchain4j.data.message.ImageContent;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +31,12 @@ import static org.apache.pdfbox.Loader.loadPDF;
 public class FileService {
 
     private final FileRepository fileRepository;
+    private final AuthService authService;
 
     public File retrieve(UUID id) {
-        return fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found with id: " + id));
+        File file = fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found with id: " + id));
+        this.validarAcessoUsuario(file);
+        return file;
     }
 
     @SneakyThrows
@@ -148,6 +152,13 @@ public class FileService {
         } catch (IOException e) {
             log.error("Erro ao carregar arquivo PDF: {} - {}", file.getOriginalFilename(), e.getMessage());
             throw new RuntimeException("Erro ao carregar arquivo PDF", e);
+        }
+    }
+
+    private void validarAcessoUsuario(File file){
+        Usuario usuario = this.authService.getAuthenticatedUser();
+        if (!file.getPrompt().getUsuario().getId().equals(usuario.getId())) {
+            throw new RuntimeException("Acesso negado ao arquivo #" + file.getId());
         }
     }
 }
