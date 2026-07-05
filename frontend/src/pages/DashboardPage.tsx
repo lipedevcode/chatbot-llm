@@ -449,6 +449,7 @@ const ConversasRecentesSection = () => {
           {recentes.map((history, i) => (
             <HistoryLink
               key={history.id ?? i}
+              title={history.title}
               history={history.prompts ?? []}
               id={history.id ?? i}
             />
