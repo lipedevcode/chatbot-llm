@@ -1,12 +1,17 @@
 package com.chatbotllm.backend.service;
 
 import com.chatbotllm.backend.data.dto.HistoryDto;
+import com.chatbotllm.backend.data.dto.TitledResponse;
 import com.chatbotllm.backend.data.model.File;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.request.SendChatMessageRequest;
 import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.inteface.personas.GenericAssistant;
+import com.chatbotllm.backend.inteface.personas.TitledAssistant;
+import com.chatbotllm.backend.utils.PersistentChatMemoryStore;
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.UserMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,7 +28,9 @@ public class ChatService {
     private final InteractionService interactionService;
     private final FileService fileService;
     private final GenericAssistant genericAssistant;
+    private final TitledAssistant titledAssistant;
     private final ChatTitleService chatTitleService;
+    private final PersistentChatMemoryStore chatMemoryStore;
 
     public SendChatMessageResponse sendChatMessage(SendChatMessageRequest sendChatMessageRequest) {
         return this.sendChatMessage(sendChatMessageRequest.getHistoryId(), sendChatMessageRequest.getUserMessage());
@@ -36,11 +43,11 @@ public class ChatService {
             history.setPrompts(new ArrayList<>());
             }
 
-        this.ensureTitle(history, userMessage);
-
         Long sessionMemoryId = history.getSession().getMemoryId();
 
-        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessage);
+        String aiMessage = isFirstMessage(history)
+                ? this.chatAndGenerateTitle(history, sessionMemoryId, userMessage, userMessage, null)
+                : genericAssistant.chat(sessionMemoryId, userMessage);
 
         this.interactionService.saveInteraction(userMessage, aiMessage, history);
 
@@ -67,11 +74,11 @@ public class ChatService {
 
         String userMessageWithFiles = String.join("\n\n", extractedTexts) +  "\n\n" + "## Prompt do usuário: " + userMessage;
 
-        // O título considera o conteúdo do anexo + o prompt do usuário; o fallback usa
-        // apenas a mensagem crua, para não expor o conteúdo do documento no título.
-        this.ensureTitle(history, userMessageWithFiles, userMessage);
-
-        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf);
+        // Na primeira mensagem o título considera o conteúdo do anexo (userMessageWithFiles),
+        // mas o fallback usa apenas a mensagem crua, para não expor o conteúdo do documento.
+        String aiMessage = isFirstMessage(history)
+                ? this.chatAndGenerateTitle(history, sessionMemoryId, userMessageWithFiles, userMessage, pagesPdf)
+                : genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf);
 
         this.interactionService.saveInteraction(userMessageWithFiles, aiMessage, history, files);
 
@@ -81,18 +88,53 @@ public class ChatService {
                 .build();
     }
 
-    /**
-     * Define o título do chat na primeira mensagem de uma conversa nova.
-     * Conversas já existentes (com título ou com prompts) permanecem inalteradas.
-     */
-    private void ensureTitle(History history, String userMessage) {
-        this.ensureTitle(history, userMessage, userMessage);
+    private boolean isFirstMessage(History history) {
+        boolean semTitulo = history.getTitle() == null || history.getTitle().isBlank();
+        return semTitulo && history.getPrompts().isEmpty();
     }
 
-    private void ensureTitle(History history, String contentForTitle, String fallbackSource) {
-        boolean semTitulo = history.getTitle() == null || history.getTitle().isBlank();
-        if (semTitulo && history.getPrompts().isEmpty()) {
-            history.setTitle(this.chatTitleService.generateTitle(contentForTitle, fallbackSource));
+    /**
+     * Primeira mensagem de uma conversa: obtém a resposta e o título do chat em uma
+     * única chamada à LLM (via {@link TitledAssistant}), define o título e semeia a
+     * memória do chat com a resposta em texto limpo, para que as próximas mensagens
+     * tenham contexto sem que o JSON estruturado polua a memória.
+     * <p>
+     * Se a geração estruturada falhar, recorre ao fluxo padrão com memória — que
+     * também é uma única chamada — e deriva o título localmente a partir da mensagem.
+     *
+     * @param llmMessage    texto enviado à LLM (pode incluir o conteúdo dos anexos)
+     * @param titleFallback fonte do título de fallback (mensagem crua do usuário)
+     * @param images        páginas de PDF como imagens, ou {@code null} quando não há anexo
+     */
+    private String chatAndGenerateTitle(History history, Long memoryId, String llmMessage, String titleFallback, List<ImageContent> images) {
+        try {
+            TitledResponse result = images == null
+                    ? titledAssistant.chat(llmMessage)
+                    : titledAssistant.chat(llmMessage, images);
+
+            String answer = result.answer() == null ? "" : result.answer();
+            history.setTitle(this.chatTitleService.finalizeTitle(result.title(), titleFallback));
+            this.seedMemory(memoryId, llmMessage, answer);
+            return answer;
+        } catch (Exception e) {
+            log.warn("Falha na geração combinada de título+resposta; usando fluxo padrão.", e);
+            String answer = images == null
+                    ? genericAssistant.chat(memoryId, llmMessage)
+                    : genericAssistant.chat(memoryId, llmMessage, images);
+            history.setTitle(this.chatTitleService.finalizeTitle(null, titleFallback));
+            return answer;
         }
+    }
+
+    /**
+     * Semeia a memória do chat com o par (mensagem do usuário, resposta) em texto
+     * limpo. Como é a primeira interação, a memória estava vazia; a mensagem de
+     * sistema é adicionada pelo assistente com memória na próxima chamada.
+     */
+    private void seedMemory(Long memoryId, String userText, String answer) {
+        this.chatMemoryStore.updateMessages(memoryId, List.of(
+                UserMessage.from(userText),
+                AiMessage.from(answer)
+        ));
     }
 }

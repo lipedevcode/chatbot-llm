@@ -1,7 +1,7 @@
 package com.chatbotllm.backend.config;
 
-import com.chatbotllm.backend.inteface.personas.ChatTitleGenerator;
 import com.chatbotllm.backend.inteface.personas.GenericAssistant;
+import com.chatbotllm.backend.inteface.personas.TitledAssistant;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import com.chatbotllm.backend.utils.PersistentChatMemoryStore;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -30,12 +30,17 @@ public class GenericAssistantConfig {
     private final SessionRepository sessionRepository;
 
     @Bean
-    public ChatMemoryProvider chatMemoryProvider() {
+    public PersistentChatMemoryStore persistentChatMemoryStore() {
+        return new PersistentChatMemoryStore(sessionRepository);
+    }
+
+    @Bean
+    public ChatMemoryProvider chatMemoryProvider(PersistentChatMemoryStore chatMemoryStore) {
         return memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
                 .maxMessages(MAX_MESSAGES_WINDOW)
                 .alwaysKeepSystemMessageFirst(true)
-                .chatMemoryStore(new PersistentChatMemoryStore(sessionRepository))
+                .chatMemoryStore(chatMemoryStore)
                 .build();
     }
 
@@ -57,9 +62,10 @@ public class GenericAssistantConfig {
     }
 
     @Bean
-    public ChatTitleGenerator chatTitleGenerator(ChatModel model){
-        // Sem chatMemoryProvider: geração de título é stateless e não afeta a memória da conversa.
-        return AiServices.create(ChatTitleGenerator.class, model);
+    public TitledAssistant titledAssistant(ChatModel model){
+        // Sem chatMemoryProvider: usado apenas na primeira mensagem para produzir
+        // resposta + título em uma única chamada, sem poluir a memória da conversa.
+        return AiServices.create(TitledAssistant.class, model);
     }
 
 

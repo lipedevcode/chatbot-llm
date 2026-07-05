@@ -1,54 +1,30 @@
 package com.chatbotllm.backend.service;
 
-import com.chatbotllm.backend.inteface.personas.ChatTitleGenerator;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * Finaliza o título do chat: normaliza o título gerado pela LLM e garante um
+ * título de fallback derivado da mensagem do usuário quando o título vem vazio,
+ * de modo que a conversa sempre tenha um título. Não faz chamadas à LLM — o
+ * título é produzido junto da resposta pelo {@code TitledAssistant} em uma única
+ * requisição.
+ */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatTitleService {
-
-    private final ChatTitleGenerator chatTitleGenerator;
 
     private static final int MAX_TITLE_LENGTH = 60;
     private static final String DEFAULT_TITLE = "Nova conversa";
-    // Limita o que é enviado à LLM: um anexo pode ter muito texto, e o título só
-    // precisa do começo do conteúdo para resumir o assunto.
-    private static final int MAX_INPUT_LENGTH = 4000;
 
     /**
-     * Gera um título para a conversa a partir da primeira mensagem do usuário.
-     * Usa a LLM e, em caso de falha ou resposta vazia, recorre a um título derivado
-     * da própria mensagem, garantindo que o chat sempre tenha um título.
+     * Normaliza {@code rawTitle} (título gerado pela LLM). Se ficar vazio, deriva
+     * um título a partir de {@code fallbackSource} (normalmente a mensagem crua do
+     * usuário) e, em último caso, usa um título padrão.
      */
-    public String generateTitle(String userMessage) {
-        return generateTitle(userMessage, userMessage);
-    }
-
-    /**
-     * Gera um título usando {@code contentForTitle} como base para a LLM (pode incluir o
-     * conteúdo de anexos, para que o assunto do documento seja considerado) e
-     * {@code fallbackSource} como fonte do título de fallback (normalmente a mensagem
-     * crua do usuário, para não expor o conteúdo do documento caso a LLM falhe).
-     */
-    public String generateTitle(String contentForTitle, String fallbackSource) {
-        String fallback = buildFallbackTitle(fallbackSource);
-        try {
-            String title = sanitize(chatTitleGenerator.generateTitle(truncateInput(contentForTitle)));
-            return title.isBlank() ? fallback : title;
-        } catch (Exception e) {
-            log.warn("Falha ao gerar título via LLM. Usando título derivado da mensagem.", e);
-            return fallback;
-        }
-    }
-
-    private String truncateInput(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.length() > MAX_INPUT_LENGTH ? value.substring(0, MAX_INPUT_LENGTH) : value;
+    public String finalizeTitle(String rawTitle, String fallbackSource) {
+        String title = sanitize(rawTitle);
+        return title.isBlank() ? buildFallbackTitle(fallbackSource) : title;
     }
 
     private String buildFallbackTitle(String userMessage) {
