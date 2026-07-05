@@ -1,6 +1,7 @@
 package com.chatbotllm.backend.service;
 
 import com.chatbotllm.backend.data.model.Usuario;
+import com.chatbotllm.backend.data.request.SignupRequest;
 import com.chatbotllm.backend.repositories.UsuarioRepository;
 import com.chatbotllm.backend.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
@@ -45,10 +46,18 @@ class AuthServiceTest {
 
     @Test
     void signupShouldPersistUsuarioAndReturnJwtToken() {
+        SignupRequest signupRequest = new SignupRequest();
+        signupRequest.setNome("Fulano");
+        signupRequest.setUsername("fulano");
+        signupRequest.setEmail("fulano@email.com");
+        signupRequest.setPassword("senha123");
+
+        when(usuarioRepository.existsUsuarioByUsername("fulano")).thenReturn(false);
+        when(usuarioRepository.existsUsuarioByEmail("fulano@email.com")).thenReturn(false);
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtService.generateToken(any(Usuario.class))).thenReturn("jwt-token");
 
-        String token = authService.signup();
+        String token = authService.signup(signupRequest);
 
         assertEquals("jwt-token", token);
 
@@ -56,15 +65,19 @@ class AuthServiceTest {
         verify(usuarioRepository).save(usuarioCaptor.capture());
         verify(jwtService).generateToken(usuarioCaptor.getValue());
 
-        assertNotNull(usuarioCaptor.getValue().getSubject());
-        assertEquals(64, usuarioCaptor.getValue().getSubject().length());
+        Usuario persistedUsuario = usuarioCaptor.getValue();
+        assertEquals("fulano", persistedUsuario.getUsername());
+        assertEquals("fulano@email.com", persistedUsuario.getEmail());
+        assertEquals("Fulano", persistedUsuario.getNome());
+        assertNotNull(persistedUsuario.getPassword());
+        assertEquals(64, persistedUsuario.getPassword().length());
     }
 
     @Test
     void getAuthenticatedUserShouldReturnUsuarioFromSecurityContext() {
         Usuario usuario = new Usuario();
         usuario.setId(10L);
-        usuario.setSubject("subject-123");
+        usuario.setUsername("subject-123");
 
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(
@@ -72,7 +85,7 @@ class AuthServiceTest {
                         null, List.of()
                 )
         );
-        when(usuarioRepository.findBySubject("subject-123")).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.findByUsername("subject-123")).thenReturn(Optional.of(usuario));
 
         Usuario authenticatedUser = authService.getAuthenticatedUser();
 

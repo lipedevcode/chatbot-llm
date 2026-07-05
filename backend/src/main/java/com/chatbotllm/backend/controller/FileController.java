@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.controller;
 
+import com.chatbotllm.backend.data.dto.FileMetaDto;
 import com.chatbotllm.backend.data.model.File;
 import com.chatbotllm.backend.service.FileService;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -19,6 +21,11 @@ import java.util.UUID;
 public class FileController {
 
     private final FileService fileService;
+
+    @GetMapping
+    public ResponseEntity<List<FileMetaDto>> listFiles() {
+        return ResponseEntity.ok(this.fileService.listByAuthenticatedUser());
+    }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> getFile(@PathVariable UUID id) {

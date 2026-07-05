@@ -1,7 +1,6 @@
 package com.chatbotllm.backend.controller;
 
 import com.chatbotllm.backend.data.dto.HistoryDto;
-import com.chatbotllm.backend.data.dto.SessionDto;
 import com.chatbotllm.backend.service.HistoryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +31,7 @@ class HistoryControllerTest {
 
     @Test
     void getHistoryShouldReturnHistoryDto() {
-        HistoryDto historyDto = new HistoryDto(1L, List.of(), new SessionDto("messages"));
+        HistoryDto historyDto = new HistoryDto(1L, List.of());
         when(historyService.getHistory(1L)).thenReturn(historyDto);
 
         ResponseEntity<Object> response = historyController.getHistory(1L);
@@ -45,7 +44,7 @@ class HistoryControllerTest {
 
     @Test
     void getAllHistoriesByUserShouldReturnAllHistories() {
-        List<HistoryDto> histories = List.of(new HistoryDto(1L, List.of(), new SessionDto("messages")));
+        List<HistoryDto> histories = List.of(new HistoryDto(1L, List.of()));
         when(historyService.getAllHistoriesByUser()).thenReturn(histories);
 
         ResponseEntity<Object> response = historyController.getAllHistoriesByUser();

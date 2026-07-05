@@ -3,7 +3,6 @@ import {
   getAllHistoriesByUser,
   getHistoryById,
   sendMessage,
-  signup,
   type SendChatMessageRequest,
 } from "../services/chatService";
 import type { ChatHistory } from "../interfaces/database";
@@ -45,9 +44,3 @@ export const useSendMessage = () => {
     },
   });
 };
-
-// POST /api/v1/auth/signup
-export const useSignup = () =>
-  useMutation({
-    mutationFn: signup,
-  });

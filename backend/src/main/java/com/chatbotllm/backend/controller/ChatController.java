@@ -3,9 +3,12 @@ package com.chatbotllm.backend.controller;
 import com.chatbotllm.backend.data.request.SendChatMessageRequest;
 import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.service.ChatService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,17 +18,13 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat")
+@Validated
 public class ChatController {
 
     private final ChatService chatService;
 
-    /*TODO: em metodos controllers
-    *  * validação token
-    *  * validação parameters
-     */
-
     @PostMapping("/message")
-    public ResponseEntity<Object> sendChatMessage(@RequestBody SendChatMessageRequest sendChatMessageRequest) {
+    public ResponseEntity<Object> sendChatMessage(@Valid @RequestBody SendChatMessageRequest sendChatMessageRequest) {
         SendChatMessageResponse sendChatMessageResponse = this.chatService.sendChatMessage(sendChatMessageRequest);
         return ResponseEntity
                 .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().id()))
@@ -34,7 +33,7 @@ public class ChatController {
 
     @PostMapping(value = "/message", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> sendChatMessage(@RequestParam(value = "historyId", required = false) Long historyId,
-                                                  @RequestParam("message") String message,
+                                                  @NotBlank(message = "Mensagem é obrigatória") @RequestParam("message") String message,
                                                   @RequestParam(value = "files", required = false) List<MultipartFile> files){
         SendChatMessageResponse sendChatMessageResponse = this.chatService.sendChatMessage(historyId, message, files);
         return ResponseEntity

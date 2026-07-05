@@ -17,6 +17,21 @@ export interface Usuario {
   subject: string; // username como hash de palavra aleatória
 }
 
+export interface PerfilUsuario {
+  id: number;
+  nome: string;
+  username: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface FileMeta {
+  id: string;
+  filename: string;
+  historyId: number | null;
+  resumo: string | null;
+}
+
 export interface Prompt {
   text: string;
   // O backend sempre envia `response`. O valor nulo só existe no cliente, para a

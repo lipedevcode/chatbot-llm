@@ -1,24 +1,39 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { EyeOff, Eye, ArrowRight } from "lucide-react";
+import { login } from "../../services/authService";
+import { useAuth } from "../../providers/AuthProvider";
+import { getErrorMessage } from "../../utils/errorUtils";
+import ErrorBanner from "../shared/ErrorBanner";
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const { setAuthToken } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // integrar com o endpoint de login aqui
-    setIsLoading(false);
-    navigate("/");
+    setError(null);
+    try {
+      const token = await login(form);
+      setAuthToken(token);
+      navigate("/");
+    } catch (err) {
+      setError(getErrorMessage(err, "Não foi possível entrar. Tente novamente."));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {error && <ErrorBanner message={error} />}
+
         {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wide">

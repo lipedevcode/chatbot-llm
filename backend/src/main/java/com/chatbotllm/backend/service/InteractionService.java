@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,8 @@ public class InteractionService {
 
     @Transactional
     public void saveInteraction(String userMessage, String aiMessage, History history, List<File> files) {
+        List<File> safeFiles = Objects.requireNonNullElse(files, List.of());
+
         Response response = Response.builder()
                 .text(aiMessage)
                 .build();
@@ -42,7 +45,7 @@ public class InteractionService {
                 .history(history)
                 .response(response)
                 .usuario(this.authService.getAuthenticatedUser())
-                .files(files)
+                .files(safeFiles)
                 .build();
 
         promptRepository.save(prompt);
@@ -51,9 +54,9 @@ public class InteractionService {
 
         historyRepository.save(history);
 
-        if (files != null) {
-            files.forEach(file -> file.setPrompt(prompt));
-            fileRepository.saveAll(files);
+        if (!safeFiles.isEmpty()) {
+            safeFiles.forEach(file -> file.setPrompt(prompt));
+            fileRepository.saveAll(safeFiles);
         }
     }
 }

@@ -41,11 +41,6 @@ export const sendMessage = async (
   return data;
 };
 
-export const signup = async (): Promise<string> => {
-  const { data } = await api.post<string>("/api/v1/auth/signup");
-  return data;
-};
-
 export const getHistoryById = async (id: number): Promise<ChatHistory> => {
   const { data } = await api.get<ChatHistory>(`/api/v1/history/${id}`);
   return data;

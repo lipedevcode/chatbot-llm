@@ -3,6 +3,8 @@ package com.chatbotllm.backend.service;
 import com.chatbotllm.backend.data.model.Usuario;
 import com.chatbotllm.backend.data.request.SigninRequest;
 import com.chatbotllm.backend.data.request.SignupRequest;
+import com.chatbotllm.backend.exception.ConflictException;
+import com.chatbotllm.backend.exception.UnauthorizedException;
 import com.chatbotllm.backend.repositories.UsuarioRepository;
 import com.chatbotllm.backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -38,12 +40,15 @@ public class AuthService {
     }
 
     public String login(SigninRequest signinRequest) {
+        // Mensagem única e genérica pros dois casos (email não encontrado / senha
+        // errada): mensagens distintas permitiriam enumerar quais e-mails estão
+        // cadastrados.
         Usuario usuario = usuarioRepository.findByEmail(signinRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email #" + signinRequest.getEmail() + " não encontrado"));
+                .orElseThrow(() -> new UnauthorizedException("Email ou senha inválidos"));
 
         String password = hash(signinRequest.getPassword());
         if (!usuario.getPassword().equals(password)) {
-            throw new RuntimeException("Senha incorreta");
+            throw new UnauthorizedException("Email ou senha inválidos");
         }
 
         return jwtService.generateToken(usuario);
@@ -52,11 +57,11 @@ public class AuthService {
     public Usuario getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() == null) {
-            throw new RuntimeException("Nenhum usuário autenticado encontrado");
+            throw new UnauthorizedException("Nenhum usuário autenticado encontrado");
         }
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         return usuarioRepository.findByUsername(userDetails.getUsername()).
-                orElseThrow(() -> new RuntimeException("Usuário #" + userDetails.getUsername() + " não encontrado"));
+                orElseThrow(() -> new UnauthorizedException("Usuário #" + userDetails.getUsername() + " não encontrado"));
     }
 
     private String hash(String element){
@@ -84,10 +89,10 @@ public class AuthService {
 
     private void validaSignup(SignupRequest signupRequest) {
         if (this.usuarioRepository.existsUsuarioByUsername(signupRequest.getUsername())) {
-            throw new RuntimeException("Username já existe");
+            throw new ConflictException("Username já existe");
         }
         if (this.usuarioRepository.existsUsuarioByEmail(signupRequest.getEmail())){
-            throw new RuntimeException("Email já existe");
+            throw new ConflictException("Email já existe");
         }
     }
 }

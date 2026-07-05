@@ -37,7 +37,7 @@ public class ChatService {
 
         Long sessionMemoryId = history.getSession().getMemoryId();
 
-        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessage);
+        String aiMessage = askAssistant(() -> genericAssistant.chat(sessionMemoryId, userMessage));
 
         this.interactionService.saveInteraction(userMessage, aiMessage, history);
 
@@ -64,7 +64,7 @@ public class ChatService {
 
         String userMessageWithFiles = String.join("\n\n", extractedTexts) +  "\n\n" + "## Prompt do usuário: " + userMessage;
 
-        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf);
+        String aiMessage = askAssistant(() -> genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf));
 
         this.interactionService.saveInteraction(userMessageWithFiles, aiMessage, history, files);
 
@@ -72,5 +72,17 @@ public class ChatService {
                 .aiMessage(aiMessage)
                 .history(HistoryDto.fromHistory(history.getId(), history.getPrompts()))
                 .build();
+    }
+
+    // Isola falhas do provedor de LLM (timeout, rate-limit, resposta inválida) com
+    // uma mensagem clara. Continua virando 500 (é uma falha de serviço externo,
+    // não do cliente), mas com corpo estruturado em vez do whitelabel do Spring.
+    private String askAssistant(java.util.function.Supplier<String> call) {
+        try {
+            return call.get();
+        } catch (RuntimeException e) {
+            log.error("Erro ao consultar o assistente de IA: {}", e.getMessage(), e);
+            throw new RuntimeException("Não foi possível obter resposta da IA no momento. Tente novamente.", e);
+        }
     }
 }

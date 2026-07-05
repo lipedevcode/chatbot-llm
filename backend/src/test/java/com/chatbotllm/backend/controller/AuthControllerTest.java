@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.controller;
 
+import com.chatbotllm.backend.data.request.SignupRequest;
 import com.chatbotllm.backend.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,14 +30,20 @@ class AuthControllerTest {
 
     @Test
     void signupShouldReturnJwtToken() {
-        when(authService.signup()).thenReturn("jwt-token");
+        SignupRequest signupRequest = new SignupRequest();
+        signupRequest.setNome("Fulano");
+        signupRequest.setUsername("fulano");
+        signupRequest.setEmail("fulano@email.com");
+        signupRequest.setPassword("senha123");
 
-        ResponseEntity<Object> response = authController.signup();
+        when(authService.signup(any(SignupRequest.class))).thenReturn("jwt-token");
+
+        ResponseEntity<Object> response = authController.signup(signupRequest);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("jwt-token", response.getBody());
         assertNotNull(response.getBody());
-        verify(authService).signup();
+        verify(authService).signup(signupRequest);
     }
 }
 
