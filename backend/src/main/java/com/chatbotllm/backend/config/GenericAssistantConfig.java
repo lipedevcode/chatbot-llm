@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.config;
 
+import com.chatbotllm.backend.inteface.personas.ChatTitleGenerator;
 import com.chatbotllm.backend.inteface.personas.GenericAssistant;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import com.chatbotllm.backend.utils.PersistentChatMemoryStore;
@@ -53,6 +54,12 @@ public class GenericAssistantConfig {
                 .chatModel(model)
                 .chatMemoryProvider(chatMemoryProvider)
                 .build();
+    }
+
+    @Bean
+    public ChatTitleGenerator chatTitleGenerator(ChatModel model){
+        // Sem chatMemoryProvider: geração de título é stateless e não afeta a memória da conversa.
+        return AiServices.create(ChatTitleGenerator.class, model);
     }
 
 

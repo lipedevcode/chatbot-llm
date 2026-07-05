@@ -34,7 +34,7 @@ public class HistoryService {
         History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
         this.validarAcessoUsuario(history);
-        return HistoryDto.fromHistory(historyId, history.getPrompts());
+        return HistoryDto.fromHistory(historyId, history.getTitle(), history.getPrompts());
     }
 
     public List<HistoryDto> getAllHistoriesByUser() {
@@ -42,7 +42,7 @@ public class HistoryService {
         List<History> histories = historyRepository.findAllByUsuarioId(usuario.getId());
         return histories.stream()
                 .sorted(Comparator.comparingLong(History::getId).reversed())
-                .map(history -> HistoryDto.fromHistory(history.getId(), history.getPrompts()))
+                .map(history -> HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts()))
                 .toList();
     }
 

@@ -18,6 +18,7 @@ const HistoryList = ({ histories, activeChatId }: HistoryListProps) => {
         {histories.map((history, i) => (
           <HistoryLink
             activeChatId={activeChatId}
+            title={history.title}
             history={history.prompts ?? []}
             id={history.id ?? i}
             key={i}

@@ -23,6 +23,7 @@ public class ChatService {
     private final InteractionService interactionService;
     private final FileService fileService;
     private final GenericAssistant genericAssistant;
+    private final ChatTitleService chatTitleService;
 
     public SendChatMessageResponse sendChatMessage(SendChatMessageRequest sendChatMessageRequest) {
         return this.sendChatMessage(sendChatMessageRequest.getHistoryId(), sendChatMessageRequest.getUserMessage());
@@ -35,6 +36,8 @@ public class ChatService {
             history.setPrompts(new ArrayList<>());
             }
 
+        this.ensureTitle(history, userMessage);
+
         Long sessionMemoryId = history.getSession().getMemoryId();
 
         String aiMessage = genericAssistant.chat(sessionMemoryId, userMessage);
@@ -43,7 +46,7 @@ public class ChatService {
 
         return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
-                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts()))
+                .history(HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts()))
                 .build();
     }
 
@@ -53,6 +56,8 @@ public class ChatService {
         if (history.getPrompts() == null) {
             history.setPrompts(new ArrayList<>());
         }
+
+        this.ensureTitle(history, userMessage);
 
         Long sessionMemoryId = history.getSession().getMemoryId();
 
@@ -70,7 +75,18 @@ public class ChatService {
 
         return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
-                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts()))
+                .history(HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts()))
                 .build();
+    }
+
+    /**
+     * Define o título do chat na primeira mensagem de uma conversa nova.
+     * Conversas já existentes (com título ou com prompts) permanecem inalteradas.
+     */
+    private void ensureTitle(History history, String userMessage) {
+        boolean semTitulo = history.getTitle() == null || history.getTitle().isBlank();
+        if (semTitulo && history.getPrompts().isEmpty()) {
+            history.setTitle(this.chatTitleService.generateTitle(userMessage));
+        }
     }
 }

@@ -21,7 +21,7 @@ class JwtServiceTest {
         setField(jwtService, "expiration", 60_000L);
 
         Usuario usuario = new Usuario();
-        usuario.setSubject("subject-xyz");
+        usuario.setUsername("subject-xyz");
 
         String token = jwtService.generateToken(usuario);
 
@@ -37,12 +37,12 @@ class JwtServiceTest {
         setField(jwtService, "expiration", 60_000L);
 
         Usuario usuario = new Usuario();
-        usuario.setSubject("subject-xyz");
+        usuario.setUsername("subject-xyz");
 
         String token = jwtService.generateToken(usuario);
 
         Usuario otherUser = new Usuario();
-        otherUser.setSubject("other-subject");
+        otherUser.setUsername("other-subject");
 
         assertFalse(jwtService.isValid(token, otherUser));
     }

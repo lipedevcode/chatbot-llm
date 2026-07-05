@@ -8,6 +8,10 @@ export interface Session {
 
 export interface ChatHistory {
   id?: number | null;
+  // Título gerado pelo backend na primeira mensagem. Pode ser nulo em conversas
+  // antigas, criadas antes do mecanismo de título — nesse caso o cliente deriva
+  // um título a partir da primeira mensagem.
+  title?: string | null;
   prompts?: Prompt[] | null;
   session?: Session;
 }

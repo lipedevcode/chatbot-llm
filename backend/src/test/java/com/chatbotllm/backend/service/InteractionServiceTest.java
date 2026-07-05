@@ -52,7 +52,7 @@ class InteractionServiceTest {
     void saveInteractionShouldPersistResponsePromptAndHistory() {
         Usuario usuario = new Usuario();
         usuario.setId(1L);
-        usuario.setSubject("subject-1");
+        usuario.setUsername("subject-1");
 
         History history = new History();
         history.setId(2L);
