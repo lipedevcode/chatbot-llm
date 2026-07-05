@@ -13,9 +13,13 @@ interface ChatInputBarProps {
   isPending?: boolean;
 }
 
+// Mesmo limite do backend (application.properties: spring.servlet.multipart.max-file-size).
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileAreaRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +54,24 @@ const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
+
+    // Só PDF, até o mesmo limite de tamanho do backend. Arquivo inválido é
+    // rejeitado aqui, com aviso, em vez de deixar o backend rejeitar depois
+    // com um erro genérico.
+    const invalidType = files.find((f) => f.type !== "application/pdf");
+    const invalidSize = files.find((f) => f.size > MAX_FILE_SIZE_BYTES);
+    if (invalidType) {
+      setFileError(`"${invalidType.name}" não é um PDF. Só PDFs são aceitos.`);
+      e.target.value = "";
+      return;
+    }
+    if (invalidSize) {
+      setFileError(`"${invalidSize.name}" excede o limite de 50MB.`);
+      e.target.value = "";
+      return;
+    }
+    setFileError(null);
+
     const parsed: AttachedFile[] = files.map((file) => {
       const parts = file.name.split(".");
       const extension = parts.pop() ?? "";
@@ -70,6 +92,9 @@ const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6">
+      {fileError && (
+        <p className="text-xs text-red-500 mb-2 px-1">{fileError}</p>
+      )}
       <div className="bg-input rounded-2xl shadow-sm border border-border overflow-hidden">
         {/* Preview do anexo — aparece acima do textarea quando há arquivo */}
         {attachments.length > 0 && (

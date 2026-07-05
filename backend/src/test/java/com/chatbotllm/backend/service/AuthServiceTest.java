@@ -46,18 +46,18 @@ class AuthServiceTest {
 
     @Test
     void signupShouldPersistUsuarioAndReturnJwtToken() {
-        SignupRequest request = new SignupRequest();
-        request.setNome("Fulano de Tal");
-        request.setUsername("fulano");
-        request.setEmail("fulano@example.com");
-        request.setPassword("senha123");
+        SignupRequest signupRequest = new SignupRequest();
+        signupRequest.setNome("Fulano");
+        signupRequest.setUsername("fulano");
+        signupRequest.setEmail("fulano@email.com");
+        signupRequest.setPassword("senha123");
 
         when(usuarioRepository.existsUsuarioByUsername("fulano")).thenReturn(false);
-        when(usuarioRepository.existsUsuarioByEmail("fulano@example.com")).thenReturn(false);
+        when(usuarioRepository.existsUsuarioByEmail("fulano@email.com")).thenReturn(false);
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtService.generateToken(any(Usuario.class))).thenReturn("jwt-token");
 
-        String token = authService.signup(request);
+        String token = authService.signup(signupRequest);
 
         assertEquals("jwt-token", token);
 
@@ -65,13 +65,12 @@ class AuthServiceTest {
         verify(usuarioRepository).save(usuarioCaptor.capture());
         verify(jwtService).generateToken(usuarioCaptor.getValue());
 
-        Usuario saved = usuarioCaptor.getValue();
-        assertEquals("fulano", saved.getUsername());
-        assertEquals("fulano@example.com", saved.getEmail());
-        assertEquals("Fulano de Tal", saved.getNome());
-        // A senha é armazenada como hash SHA-256 (64 caracteres hexadecimais).
-        assertNotNull(saved.getPassword());
-        assertEquals(64, saved.getPassword().length());
+        Usuario persistedUsuario = usuarioCaptor.getValue();
+        assertEquals("fulano", persistedUsuario.getUsername());
+        assertEquals("fulano@email.com", persistedUsuario.getEmail());
+        assertEquals("Fulano", persistedUsuario.getNome());
+        assertNotNull(persistedUsuario.getPassword());
+        assertEquals(64, persistedUsuario.getPassword().length());
     }
 
     @Test

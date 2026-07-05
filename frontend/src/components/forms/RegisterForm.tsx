@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, X, Camera } from "lucide-react";
+import { signup } from "../../services/authService";
+import { useAuth } from "../../providers/AuthProvider";
+import { getErrorMessage } from "../../utils/errorUtils";
 
 interface RegisterForm {
   fullName: string;
@@ -13,8 +16,38 @@ interface RegisterForm {
   createdAt: string;
 }
 
+// Precisa viver fora do RegisterForm: se fosse definido dentro do componente,
+// cada re-render (ex.: a cada tecla digitada, via setForm) criaria uma nova
+// identidade de componente, fazendo o React desmontar/remontar os inputs
+// filhos e perder o foco — só dava pra digitar um caractere por vez.
+const Field = ({
+  label,
+  optional = false,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  children: React.ReactNode;
+}) => (
+  <div className="flex flex-col gap-1.5">
+    <div className="flex items-center gap-1.5">
+      <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wide">
+        {label}
+      </label>
+      {optional && (
+        <span className="text-[10px] text-foreground-muted border border-border rounded-full px-1.5 py-0.5 leading-none">
+          opcional
+        </span>
+      )}
+    </div>
+    {children}
+  </div>
+);
+
 const RegisterForm = () => {
   const navigate = useNavigate();
+  const { setAuthToken } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,46 +87,28 @@ const RegisterForm = () => {
     setError("");
     setIsLoading(true);
 
-    // integrar com o endpoint de registro aqui
-    // const payload = {
-    //   fullName: form.fullName,
-    //   username: form.username,
-    //   email: form.email,
-    //   password: form.password,
-    //   description: form.description || undefined,
-    //   avatar: form.avatar || undefined,
-    //   createdAt: form.createdAt,
-    // }
-
-    setIsLoading(false);
-    navigate("/");
+    // O backend só aceita nome/username/email/senha hoje — avatar, descrição e
+    // data de criação não são persistidos (não existe suporte a isso na API).
+    try {
+      const token = await signup({
+        nome: form.fullName,
+        username: form.username,
+        email: form.email,
+        password: form.password,
+      });
+      setAuthToken(token);
+      navigate("/");
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "Não foi possível criar a conta. Verifique os dados e tente novamente."
+        )
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const Field = ({
-    label,
-    // required = false,
-    optional = false,
-    children,
-  }: {
-    label: string;
-    required?: boolean;
-    optional?: boolean;
-    children: React.ReactNode;
-  }) => (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5">
-        <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wide">
-          {label}
-        </label>
-        {optional && (
-          <span className="text-[10px] text-foreground-muted border border-border rounded-full px-1.5 py-0.5 leading-none">
-            opcional
-          </span>
-        )}
-      </div>
-      {children}
-    </div>
-  );
 
   return (
     <>

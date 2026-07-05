@@ -94,15 +94,18 @@ class HistoryServiceTest {
     @Test
     void getHistoryShouldMapHistoryToDto() {
         Usuario usuario = new Usuario();
-        usuario.setId(1L);
-        usuario.setUsername("subject-owner");
+        usuario.setId(42L);
 
         Response response = Response.builder().text("Resposta da IA").build();
-        Prompt prompt = Prompt.builder().text("Pergunta do usuário").response(response).build();
+        Prompt prompt = Prompt.builder()
+                .id(1L)
+                .text("Pergunta do usuário")
+                .response(response)
+                .files(List.of())
+                .build();
         Session session = new Session(1L, "mensagens");
         History history = new History();
         history.setId(1L);
-        history.setTitle("Título da conversa");
         history.setPrompts(List.of(prompt));
         history.setSession(session);
         history.setUsuario(usuario);
@@ -113,7 +116,6 @@ class HistoryServiceTest {
         HistoryDto historyDto = historyService.getHistory(1L);
 
         assertEquals(1L, historyDto.id());
-        assertEquals("Título da conversa", historyDto.title());
         assertEquals("Pergunta do usuário", historyDto.prompts().getFirst().text());
         assertEquals("Resposta da IA", historyDto.prompts().getFirst().response().text());
     }
@@ -127,7 +129,6 @@ class HistoryServiceTest {
         Session session = new Session(1L, "messages");
         History history = new History();
         history.setId(3L);
-        history.setTitle("Título da conversa");
         history.setPrompts(List.of());
         history.setSession(session);
 
@@ -138,7 +139,6 @@ class HistoryServiceTest {
 
         assertEquals(1, histories.size());
         assertEquals(3L, histories.getFirst().id());
-        assertEquals("Título da conversa", histories.getFirst().title());
     }
 }
 

@@ -31,8 +31,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                // Requisição sem autenticação válida retorna 401 (e não 403), para que o
-                // cliente saiba que deve renovar/limpar o token.
+                // Sem token, token inválido/expirado, ou de usuário inexistente: o
+                // JwtAuthFilter trata tudo isso como "não autenticado" (não popula o
+                // SecurityContext). Sem este entry point, o Spring Security responderia
+                // 403 (Http403ForbiddenEntryPoint) por padrão; o frontend precisa de um
+                // 401 consistente para saber que deve descartar o token e ir pro login.
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

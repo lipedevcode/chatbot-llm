@@ -1,41 +1,48 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { signup } from "../services/chatService";
+import { getPerfil } from "../services/userService";
 
 interface AuthContextType {
   token: string | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  // Usado por LoginForm/RegisterForm após um login/registro bem-sucedido, para
+  // atualizar o contexto imediatamente (sem precisar de reload).
+  setAuthToken: (token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   token: null,
   isLoading: true,
+  isAuthenticated: false,
+  setAuthToken: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-// O signup é automático — o backend gera um subject (token) para o usuário
-// sem precisar de formulário de login/senha.
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
       const stored = localStorage.getItem("token");
 
-      if (stored) {
-        setToken(stored);
+      if (!stored) {
         setIsLoading(false);
         return;
       }
 
-      // Primeiro acesso: faz signup e salva o token retornado
+      // Valida o token existente contra um endpoint autenticado. Se o backend
+      // recusar (expirado, assinatura inválida, ou usuário que não existe mais),
+      // tratamos como sessão inválida: descarta o token e manda pro login.
       try {
-        const subject = await signup();
-        localStorage.setItem("token", subject);
-        setToken(subject);
-      } catch (err) {
-        console.error("Erro ao gerar usuário:", err);
+        await getPerfil();
+        setToken(stored);
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -43,6 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     init();
   }, []);
+
+  const setAuthToken = (newToken: string) => {
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+    setIsAuthenticated(true);
+  };
 
   if (isLoading) {
     return (
@@ -53,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ token, isLoading }}>
+    <AuthContext.Provider value={{ token, isLoading, isAuthenticated, setAuthToken }}>
       {children}
     </AuthContext.Provider>
   );

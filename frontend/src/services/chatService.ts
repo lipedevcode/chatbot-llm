@@ -42,8 +42,7 @@ export const sendMessage = async (
 };
 
 export const signup = async (): Promise<string> => {
-  // Signup automático anônimo: o app não tem formulário de login, então geramos
-  // credenciais aleatórias para satisfazer o contrato do backend (SignupRequest).
+  // Temporário, integrar form de register e login com api
   const random =
     globalThis.crypto?.randomUUID?.().replace(/-/g, "") ??
     Math.random().toString(36).slice(2) + Date.now().toString(36);
