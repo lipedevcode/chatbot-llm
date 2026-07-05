@@ -14,6 +14,9 @@ public class ChatTitleService {
 
     private static final int MAX_TITLE_LENGTH = 60;
     private static final String DEFAULT_TITLE = "Nova conversa";
+    // Limita o que é enviado à LLM: um anexo pode ter muito texto, e o título só
+    // precisa do começo do conteúdo para resumir o assunto.
+    private static final int MAX_INPUT_LENGTH = 4000;
 
     /**
      * Gera um título para a conversa a partir da primeira mensagem do usuário.
@@ -21,14 +24,31 @@ public class ChatTitleService {
      * da própria mensagem, garantindo que o chat sempre tenha um título.
      */
     public String generateTitle(String userMessage) {
-        String fallback = buildFallbackTitle(userMessage);
+        return generateTitle(userMessage, userMessage);
+    }
+
+    /**
+     * Gera um título usando {@code contentForTitle} como base para a LLM (pode incluir o
+     * conteúdo de anexos, para que o assunto do documento seja considerado) e
+     * {@code fallbackSource} como fonte do título de fallback (normalmente a mensagem
+     * crua do usuário, para não expor o conteúdo do documento caso a LLM falhe).
+     */
+    public String generateTitle(String contentForTitle, String fallbackSource) {
+        String fallback = buildFallbackTitle(fallbackSource);
         try {
-            String title = sanitize(chatTitleGenerator.generateTitle(userMessage));
+            String title = sanitize(chatTitleGenerator.generateTitle(truncateInput(contentForTitle)));
             return title.isBlank() ? fallback : title;
         } catch (Exception e) {
             log.warn("Falha ao gerar título via LLM. Usando título derivado da mensagem.", e);
             return fallback;
         }
+    }
+
+    private String truncateInput(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() > MAX_INPUT_LENGTH ? value.substring(0, MAX_INPUT_LENGTH) : value;
     }
 
     private String buildFallbackTitle(String userMessage) {

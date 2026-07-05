@@ -57,8 +57,6 @@ public class ChatService {
             history.setPrompts(new ArrayList<>());
         }
 
-        this.ensureTitle(history, userMessage);
-
         Long sessionMemoryId = history.getSession().getMemoryId();
 
         List<File> files = this.fileService.createFromMultipartFiles(multipartFiles);
@@ -68,6 +66,10 @@ public class ChatService {
         List<ImageContent> pagesPdf = this.fileService.getPagesImagesFromFiles(files);
 
         String userMessageWithFiles = String.join("\n\n", extractedTexts) +  "\n\n" + "## Prompt do usuário: " + userMessage;
+
+        // O título considera o conteúdo do anexo + o prompt do usuário; o fallback usa
+        // apenas a mensagem crua, para não expor o conteúdo do documento no título.
+        this.ensureTitle(history, userMessageWithFiles, userMessage);
 
         String aiMessage = genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf);
 
@@ -84,9 +86,13 @@ public class ChatService {
      * Conversas já existentes (com título ou com prompts) permanecem inalteradas.
      */
     private void ensureTitle(History history, String userMessage) {
+        this.ensureTitle(history, userMessage, userMessage);
+    }
+
+    private void ensureTitle(History history, String contentForTitle, String fallbackSource) {
         boolean semTitulo = history.getTitle() == null || history.getTitle().isBlank();
         if (semTitulo && history.getPrompts().isEmpty()) {
-            history.setTitle(this.chatTitleService.generateTitle(userMessage));
+            history.setTitle(this.chatTitleService.generateTitle(contentForTitle, fallbackSource));
         }
     }
 }
