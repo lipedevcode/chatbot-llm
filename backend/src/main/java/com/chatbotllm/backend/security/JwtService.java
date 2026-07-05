@@ -26,14 +26,14 @@ public class JwtService {
     public String generateToken(Usuario usuario) {
         return Jwts.builder()
                 .issuedAt(new Date())
-                .subject(usuario.getSubject())
+                .subject(usuario.getUsername())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSecretKey())
                 .compact();
     }
 
     public boolean isValid(String token, Usuario usuario) {
-        return extractSubject(token).equals(usuario.getSubject())
+        return extractSubject(token).equals(usuario.getUsername())
                 && !parseClaims(token).getExpiration().before(new Date());
     }
 
