@@ -1,3 +1,4 @@
+import { api } from "../../services/api";
 import FileChip from "../shared/FileChip";
 import type { Attachment } from "../../interfaces/database";
 
@@ -7,16 +8,25 @@ interface UserMessageProps {
 }
 
 const UserMessage = ({ text, attachments }: UserMessageProps) => {
+  const handleFileOpen = async (id: string) => {
+    const response = await api.get(`/api/v1/files/${id}`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: response.headers["content-type"] ?? "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  };
+
   return (
     <div className="flex flex-col items-end gap-2">
-      {/* Anexo acima da bolha, se houver */}
       {attachments && (
         <div className="flex flex-wrap gap-2 max-h-30 overflow-y-auto">
           {attachments.map((attachment) => (
             <FileChip
-              key={attachment.name}
+              key={attachment.id}
               name={attachment.name}
               extension={attachment.extension}
+              onClick={() => handleFileOpen(attachment.id)}
             />
           ))}
         </div>

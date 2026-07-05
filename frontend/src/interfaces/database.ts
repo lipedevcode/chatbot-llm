@@ -31,6 +31,7 @@ export interface Prompt {
   files?: File[];
 }
 export interface Attachment {
+  id: string;
   name: string;
   extension: string;
 }
