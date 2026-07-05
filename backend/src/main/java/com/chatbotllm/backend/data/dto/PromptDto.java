@@ -11,7 +11,7 @@ public record PromptDto(String text, ResponseDto response, List<FileDto> files) 
         return new PromptDto(
                 text,
                 new ResponseDto(response.getText()),
-                safeFiles.stream().map(file -> new FileDto(file.getId(), new ResponseDto(response.getText()))).toList()
+                safeFiles.stream().map(file -> new FileDto(file.getId(), file.getFilename(), new ResponseDto(response.getText()))).toList()
         );
     }
     public static PromptDto fromPrompt (String text, ResponseDto response, List<FileDto> files) {
