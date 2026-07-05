@@ -21,9 +21,10 @@ const MessageBubble = ({
     ? (prompt.attachments ?? [])
     : hasEmbeddedFile(prompt.text)
       ? (prompt.files ?? []).map((f) => {
-          const parts = f.filename.split(".");
+          const filename = f.filename ?? "documento";
+          const parts = filename.split(".");
           const extension = parts.length > 1 ? parts.pop()! : "";
-          return { name: parts.join("."), extension };
+          return { name: parts.join(".") || filename, extension };
         })
       : [];
 

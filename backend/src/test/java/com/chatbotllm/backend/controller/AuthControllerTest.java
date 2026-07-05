@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.controller;
 
+import com.chatbotllm.backend.data.request.SignupRequest;
 import com.chatbotllm.backend.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,14 +29,15 @@ class AuthControllerTest {
 
     @Test
     void signupShouldReturnJwtToken() {
-        when(authService.signup()).thenReturn("jwt-token");
+        SignupRequest request = new SignupRequest();
+        when(authService.signup(request)).thenReturn("jwt-token");
 
-        ResponseEntity<Object> response = authController.signup();
+        ResponseEntity<Object> response = authController.signup(request);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("jwt-token", response.getBody());
         assertNotNull(response.getBody());
-        verify(authService).signup();
+        verify(authService).signup(request);
     }
 }
 

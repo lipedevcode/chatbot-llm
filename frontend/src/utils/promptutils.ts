@@ -1,5 +1,5 @@
 export const extractUserText = (text: string): string => {
-  const marker = "## Pergunta do usuário:";
+  const marker = "## Prompt do usuário:";
   const idx = text.indexOf(marker);
   if (idx !== -1) {
     return text.slice(idx + marker.length).trim();

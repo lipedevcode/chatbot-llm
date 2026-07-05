@@ -42,7 +42,19 @@ export const sendMessage = async (
 };
 
 export const signup = async (): Promise<string> => {
-  const { data } = await api.post<string>("/api/v1/auth/signup");
+  // Signup automático anônimo: o app não tem formulário de login, então geramos
+  // credenciais aleatórias para satisfazer o contrato do backend (SignupRequest).
+  const random =
+    globalThis.crypto?.randomUUID?.().replace(/-/g, "") ??
+    Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const handle = `anon_${random.slice(0, 20)}`;
+  const payload = {
+    nome: "Usuário Anônimo",
+    username: handle,
+    email: `${handle}@chatbot.local`,
+    password: random,
+  };
+  const { data } = await api.post<string>("/api/v1/auth/signup", payload);
   return data;
 };
 
