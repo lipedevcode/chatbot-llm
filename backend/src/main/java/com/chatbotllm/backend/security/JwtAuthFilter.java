@@ -45,7 +45,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Usuario usuario = usuarioOpt.get();
                 UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                         .username(usuario.getUsername())
-                        .password("")
+                        .password(usuario.getPassword())
                         .roles()
                         .build();
                 if (jwtService.isValid(token, usuario)) {
