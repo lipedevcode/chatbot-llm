@@ -6,6 +6,7 @@ import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.request.SendChatMessageRequest;
 import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.inteface.personas.GenericAssistant;
+import dev.langchain4j.data.message.ImageContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,7 +43,7 @@ public class ChatService {
 
         return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
-                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
+                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts()))
                 .build();
     }
 
@@ -59,15 +60,17 @@ public class ChatService {
 
         List<String> extractedTexts = this.fileService.getTextsFromFiles(files);
 
-        String userMessageWithFiles = String.join("\n\n", extractedTexts) +  "\n\n" + "## Pergunta do usuário: " + userMessage;
+        List<ImageContent> pagesPdf = this.fileService.getPagesImagesFromFiles(files);
 
-        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessageWithFiles);
+        String userMessageWithFiles = String.join("\n\n", extractedTexts) +  "\n\n" + "## Prompt do usuário: " + userMessage;
+
+        String aiMessage = genericAssistant.chat(sessionMemoryId, userMessageWithFiles, pagesPdf);
 
         this.interactionService.saveInteraction(userMessageWithFiles, aiMessage, history, files);
 
         return SendChatMessageResponse.builder()
                 .aiMessage(aiMessage)
-                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
+                .history(HistoryDto.fromHistory(history.getId(), history.getPrompts()))
                 .build();
     }
 }
