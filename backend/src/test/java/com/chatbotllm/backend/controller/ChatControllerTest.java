@@ -34,7 +34,7 @@ class ChatControllerTest {
     @Test
     void sendChatMessageShouldReturnCreatedResponseWithLocation() {
         SendChatMessageResponse serviceResponse = SendChatMessageResponse.builder()
-                .history(new HistoryDto(7L, List.of()))
+                .history(new HistoryDto(7L, "Título", List.of()))
                 .aiMessage("Mensagem da IA")
                 .build();
         when(chatService.sendChatMessage(any())).thenReturn(serviceResponse);
