@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.net.URI;
 import java.util.List;
@@ -39,6 +40,18 @@ public class ChatController {
         return ResponseEntity
                 .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().id()))
                 .body(sendChatMessageResponse);
+    }
+
+    /**
+     * Variante de streaming (SSE) do envio de mensagem de texto: transmite a
+     * resposta da LLM token a token. Emite os eventos {@code meta} (id + título),
+     * {@code token} (fragmentos), {@code done} (conclusão) e {@code error}.
+     * Mensagens com anexos continuam pelo endpoint multipart não-streaming acima.
+     */
+    @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamChatMessage(@Valid @RequestBody SendChatMessageRequest sendChatMessageRequest) {
+        return this.chatService.streamChatMessage(
+                sendChatMessageRequest.getHistoryId(), sendChatMessageRequest.getUserMessage());
     }
 
 }

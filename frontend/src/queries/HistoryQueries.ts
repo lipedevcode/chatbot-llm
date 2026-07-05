@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getAllHistoriesByUser,
   getHistoryById,
   sendMessage,
+  streamMessage,
   type SendChatMessageRequest,
 } from "../services/chatService";
-import type { ChatHistory } from "../interfaces/database";
+import type { ChatHistory, Prompt } from "../interfaces/database";
 
 // GET /api/v1/history/all/by-user
 export const useHistories = () =>
@@ -43,4 +45,149 @@ export const useSendMessage = () => {
       queryClient.invalidateQueries({ queryKey: ["histories"] });
     },
   });
+};
+
+// POST /api/v1/chat/message/stream (SSE)
+export interface UseChatStreamOptions {
+  // Chamado quando uma conversa NOVA conclui, com o id retornado pelo backend.
+  // A navegação só ocorre aqui (e não no evento meta) porque as rotas "/" e
+  // "/chat/:id" remontam a página — navegar no meio do streaming perderia o
+  // estado local. Ao concluir, o cache já está semeado com a conversa completa.
+  onNewChatComplete: (historyId: number) => void;
+}
+
+export interface UseChatStreamResult {
+  // Texto da mensagem do usuário exibido otimisticamente.
+  pendingUser: string | null;
+  // Resposta parcial da LLM; null antes do primeiro token (mostra "digitando").
+  streamingText: string | null;
+  isStreaming: boolean;
+  error: string | null;
+  start: (params: { historyId: number | null; userMessage: string }) => void;
+  reset: () => void;
+}
+
+export const useChatStream = (
+  options: UseChatStreamOptions,
+): UseChatStreamResult => {
+  const queryClient = useQueryClient();
+
+  // Mantém as opções em um ref para que `start` permaneça estável mesmo quando o
+  // chamador passa um objeto de opções recriado a cada render. `start` só é
+  // chamado em eventos de usuário (bem depois da montagem), então sincronizar o
+  // ref em um efeito é suficiente e evita escrita em ref durante o render.
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
+  const [pendingUser, setPendingUser] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Aborta o stream se o componente desmontar no meio (evita setState órfão).
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const reset = useCallback(() => setError(null), []);
+
+  const start = useCallback(
+    (params: { historyId: number | null; userMessage: string }) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setPendingUser(params.userMessage);
+      setStreamingText(null);
+      setIsStreaming(true);
+      setError(null);
+
+      let historyId = params.historyId;
+      let title: string | null = null;
+      let answer = "";
+
+      const finishError = (message: string) => {
+        if (!mountedRef.current) return;
+        setPendingUser(null);
+        setStreamingText(null);
+        setIsStreaming(false);
+        setError(message);
+      };
+
+      streamMessage(
+        params,
+        {
+          onMeta: (meta) => {
+            historyId = meta.historyId;
+            title = meta.title;
+          },
+          onToken: (token) => {
+            answer += token;
+            if (mountedRef.current) setStreamingText(answer);
+          },
+          onDone: (meta) => {
+            const id = meta.historyId ?? historyId;
+            if (id == null) {
+              finishError("Resposta de streaming sem id de conversa.");
+              return;
+            }
+            const finalTitle = meta.title ?? title;
+
+            // Semeia/atualiza o cache da conversa com a interação concluída, para
+            // que ela persista após limpar o estado local (e após navegar, no caso
+            // de conversa nova). A persistência no backend já ocorreu antes do
+            // evento "done", então um eventual refetch é consistente.
+            queryClient.setQueryData<ChatHistory>(["history", id], (prev) => {
+              const newPrompt: Prompt = {
+                text: params.userMessage,
+                response: { text: answer },
+                files: [],
+              };
+              const base: ChatHistory = prev ?? {
+                id,
+                title: finalTitle,
+                prompts: [],
+              };
+              return {
+                ...base,
+                id,
+                title: base.title ?? finalTitle,
+                prompts: [...(base.prompts ?? []), newPrompt],
+              };
+            });
+            queryClient.invalidateQueries({ queryKey: ["histories"] });
+
+            const isNewChat = params.historyId == null;
+            if (!isNewChat && mountedRef.current) {
+              // Conversa existente: limpa o estado local; o cache já tem a interação.
+              setPendingUser(null);
+              setStreamingText(null);
+              setIsStreaming(false);
+            }
+            // Conversa nova: navega para a rota da conversa. A página remonta e lê
+            // o cache já semeado; não limpamos o estado local (será descartado).
+            if (isNewChat) optionsRef.current.onNewChatComplete(id);
+          },
+          onError: (message) => finishError(message),
+        },
+        controller.signal,
+      ).catch((err: unknown) => {
+        if (controller.signal.aborted) return; // desmontou/reenviou: ignora
+        finishError(
+          err instanceof Error ? err.message : "Falha ao enviar a mensagem.",
+        );
+      });
+    },
+    [queryClient],
+  );
+
+  return { pendingUser, streamingText, isStreaming, error, start, reset };
 };
