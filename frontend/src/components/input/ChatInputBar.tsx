@@ -66,7 +66,7 @@ const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
     e.target.value = "";
   };
 
-  const canSend = (!!input.trim() || !!attachments) && !isPending;
+  const canSend = (!!input.trim() || attachments.length > 0) && !isPending;
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6">
@@ -120,6 +120,8 @@ const ChatInputBar = ({ onSend, isPending = false }: ChatInputBarProps) => {
             </button>
             <input
               type="file"
+              accept="application/pdf"
+              multiple
               ref={fileAreaRef}
               onChange={handleFileChange}
               hidden
