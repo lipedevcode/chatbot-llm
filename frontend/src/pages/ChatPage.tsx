@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import ChatInputBar from "../components/input/ChatInputBar.tsx";
+import ChatInputBar, {
+  type AttachedFile,
+} from "../components/input/ChatInputBar.tsx";
 import WelcomeScreen from "../components/shared/WelcomeScreen.tsx";
 import ChatHistory from "../components/history/ChatHistory.tsx";
 import ErrorBanner from "../components/shared/ErrorBanner.tsx";
 import { useHistoryById, useSendMessage } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
+import { extractUserText } from "../utils/promptutils.ts";
 
 const ChatArea = () => {
   const location = useLocation();
@@ -26,28 +29,32 @@ const ChatArea = () => {
   // Mensagem do usuário exibida otimisticamente, antes da resposta da LLM chegar.
   const [pending, setPending] = useState<string | null>(null);
   // Último texto enviado, mantido para permitir reenvio em caso de falha.
-  const [lastSent, setLastSent] = useState<string | null>(null);
+  const [lastSent, setLastSent] = useState<{
+    text: string;
+    attachments?: AttachedFile[];
+  } | null>(null);
 
   const prompts = history?.prompts ?? [];
 
   // Limpa a mensagem otimista assim que o backend devolve o prompt já respondido.
   useEffect(() => {
-    if (pending && prompts.some((p) => p.text === pending && p.response)) {
+    if (pending && prompts.some((p) => extractUserText(p.text) === pending && p.response)) {
       setPending(null);
     }
   }, [prompts, pending]);
 
   const displayedPrompts: Prompt[] = pending
-    ? [...prompts, { text: pending, response: null }]
+    ? [...prompts, { text: pending, response: null, files: [] }]
     : prompts;
 
-  const submit = (text: string) => {
+  const submit = (text: string, attachedFiles?: AttachedFile[]) => {
     setPending(text);
-    setLastSent(text);
+    setLastSent({ text, attachments: attachedFiles });
     send(
       {
         historyId: hasChatId ? numericChatId : null,
         userMessage: text,
+        files: attachedFiles?.map((a) => a.file),
       },
       {
         onSuccess: (data) => {
@@ -85,13 +92,15 @@ const ChatArea = () => {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex flex-col flex-1 overflow-y-auto">{renderContent()}</div>
+      <div className="flex flex-col flex-1 overflow-y-auto">
+        {renderContent()}
+      </div>
 
       {isSendError && lastSent && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-2">
           <ErrorBanner
             message="Falha ao enviar a mensagem."
-            onRetry={() => submit(lastSent)}
+            onRetry={() => submit(lastSent.text, lastSent.attachments)}
           />
         </div>
       )}

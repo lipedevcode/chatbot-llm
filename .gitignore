@@ -1,4 +1,5 @@
 .claude
+/tmp/
 backend/HELP.md
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar

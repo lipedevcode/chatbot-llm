@@ -22,9 +22,16 @@ export interface Prompt {
   // O backend sempre envia `response`. O valor nulo só existe no cliente, para a
   // mensagem otimista do usuário enquanto a resposta da LLM ainda não chegou.
   response?: Response | null;
+  // o Atachment eh so pelo cliente
   attachments?: Attachment[] | null;
+  files?: File[];
 }
 export interface Attachment {
   name: string;
   extension: string;
+}
+
+export interface File {
+  id: string;
+  filename: string;
 }
