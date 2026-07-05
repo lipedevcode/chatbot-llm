@@ -12,7 +12,10 @@ const UserMessage = ({ text, attachments }: UserMessageProps) => {
     const response = await api.get(`/api/v1/files/${id}`, {
       responseType: "blob",
     });
-    const blob = new Blob([response.data], { type: response.headers["content-type"] ?? "application/pdf" });
+    const contentType = response.headers["content-type"];
+    const blob = new Blob([response.data], {
+      type: typeof contentType === "string" ? contentType : "application/pdf",
+    });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
   };
