@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import ErrorBanner from "../components/shared/ErrorBanner";
 import { HistoryLink } from "../components/history/HistoryLink";
+import ModelResponse from "../components/messages/ModelResponse";
 import { useProfile, useUpdateProfile } from "../queries/UserQueries";
 import { useFiles } from "../queries/FileQueries";
 import { useHistories } from "../queries/HistoryQueries";
@@ -234,7 +235,7 @@ const DocumentoModal = ({
   </div>
 );
 
-// Modal simples para visualizar o resumo completo do documento (texto puro).
+// Modal para visualizar o resumo completo do documento, renderizado em markdown.
 const ResumoModal = ({
   filename,
   resumo,
@@ -259,9 +260,13 @@ const ResumoModal = ({
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4">
-        <p className="text-sm text-foreground-secondary whitespace-pre-wrap">
-          {resumo ?? "Sem resumo disponível para este documento."}
-        </p>
+        {resumo ? (
+          <ModelResponse response={resumo} />
+        ) : (
+          <p className="text-sm text-foreground-secondary">
+            Sem resumo disponível para este documento.
+          </p>
+        )}
       </div>
     </div>
   </div>
