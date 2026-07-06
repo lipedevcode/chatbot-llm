@@ -1,7 +1,6 @@
 package com.chatbotllm.backend.controller;
 
 import com.chatbotllm.backend.data.dto.HistoryDto;
-import com.chatbotllm.backend.data.dto.SessionDto;
 import com.chatbotllm.backend.data.response.SendChatMessageResponse;
 import com.chatbotllm.backend.service.ChatService;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +34,7 @@ class ChatControllerTest {
     @Test
     void sendChatMessageShouldReturnCreatedResponseWithLocation() {
         SendChatMessageResponse serviceResponse = SendChatMessageResponse.builder()
-                .history(new HistoryDto(7L, List.of(), new SessionDto("messages")))
+                .history(new HistoryDto(7L, "Título", List.of()))
                 .aiMessage("Mensagem da IA")
                 .build();
         when(chatService.sendChatMessage(any())).thenReturn(serviceResponse);

@@ -1,6 +1,10 @@
 package com.chatbotllm.backend.service;
 
 import com.chatbotllm.backend.data.model.Usuario;
+import com.chatbotllm.backend.data.request.SigninRequest;
+import com.chatbotllm.backend.data.request.SignupRequest;
+import com.chatbotllm.backend.exception.ConflictException;
+import com.chatbotllm.backend.exception.UnauthorizedException;
 import com.chatbotllm.backend.repositories.UsuarioRepository;
 import com.chatbotllm.backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +24,32 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final JwtService jwtService;
 
-    public String signup(){
-        Usuario usuario = new Usuario();
-        usuario.setSubject(hash(Instant.now().toString()));
+    public String signup(SignupRequest signupRequest) {
+        this.validaSignup(signupRequest);
+        Instant createdAt = Instant.now();
+        Usuario usuario = Usuario.builder()
+                .username(signupRequest.getUsername())
+                .email(signupRequest.getEmail())
+                .password(hash(signupRequest.getPassword()))
+                .nome(signupRequest.getNome())
+                .createdAt(createdAt)
+                .build();
         usuarioRepository.save(usuario);
+
+        return jwtService.generateToken(usuario);
+    }
+
+    public String login(SigninRequest signinRequest) {
+        // Mensagem única e genérica pros dois casos (email não encontrado / senha
+        // errada): mensagens distintas permitiriam enumerar quais e-mails estão
+        // cadastrados.
+        Usuario usuario = usuarioRepository.findByEmail(signinRequest.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("Email ou senha inválidos"));
+
+        String password = hash(signinRequest.getPassword());
+        if (!usuario.getPassword().equals(password)) {
+            throw new UnauthorizedException("Email ou senha inválidos");
+        }
 
         return jwtService.generateToken(usuario);
     }
@@ -31,20 +57,20 @@ public class AuthService {
     public Usuario getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() == null) {
-            throw new RuntimeException("Nenhum usuário autenticado encontrado");
+            throw new UnauthorizedException("Nenhum usuário autenticado encontrado");
         }
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        return usuarioRepository.findBySubject(userDetails.getUsername()).
-                orElseThrow(() -> new RuntimeException("Usuário #" + userDetails.getUsername() + " não encontrado"));
+        return usuarioRepository.findByUsername(userDetails.getUsername()).
+                orElseThrow(() -> new UnauthorizedException("Usuário #" + userDetails.getUsername() + " não encontrado"));
     }
 
-    private String hash(String subject){
+    private String hash(String element){
         try {
             // Instancia o algoritmo desejado (SHA-256, MD5, SHA-512, etc.)
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             // Converte a string para bytes e gera o hash
-            byte[] hashBytes = digest.digest(subject.getBytes());
+            byte[] hashBytes = digest.digest(element.getBytes());
 
             // Converte o array de bytes para uma representação em String hexadecimal
             StringBuilder hexString = new StringBuilder();
@@ -58,6 +84,15 @@ public class AuthService {
 
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Erro ao gerar o hash", e);
+        }
+    }
+
+    private void validaSignup(SignupRequest signupRequest) {
+        if (this.usuarioRepository.existsUsuarioByUsername(signupRequest.getUsername())) {
+            throw new ConflictException("Username já existe");
+        }
+        if (this.usuarioRepository.existsUsuarioByEmail(signupRequest.getEmail())){
+            throw new ConflictException("Email já existe");
         }
     }
 }

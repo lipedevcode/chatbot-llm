@@ -4,6 +4,8 @@ import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.model.Session;
 import com.chatbotllm.backend.data.model.Usuario;
+import com.chatbotllm.backend.exception.ForbiddenOperationException;
+import com.chatbotllm.backend.exception.ResourceNotFoundException;
 import com.chatbotllm.backend.repositories.HistoryRepository;
 import com.chatbotllm.backend.repositories.SessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +29,14 @@ public class HistoryService {
             return initializeHistoryWithSession();
         }
         return historyRepository.findById(historyId)
-                .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("History #" + historyId + " não encontrado"));
     }
 
     public HistoryDto getHistory(Long historyId) {
         History history = historyRepository.findById(historyId)
-                .orElseThrow(() -> new RuntimeException("History #" + historyId + " não encontrado"));
-        return HistoryDto.fromHistory(historyId, history.getPrompts(), history.getSession());
+                .orElseThrow(() -> new ResourceNotFoundException("History #" + historyId + " não encontrado"));
+        this.validarAcessoUsuario(history);
+        return HistoryDto.fromHistory(historyId, history.getTitle(), history.getPrompts());
     }
 
     public List<HistoryDto> getAllHistoriesByUser() {
@@ -41,7 +44,7 @@ public class HistoryService {
         List<History> histories = historyRepository.findAllByUsuarioId(usuario.getId());
         return histories.stream()
                 .sorted(Comparator.comparingLong(History::getId).reversed())
-                .map(history -> HistoryDto.fromHistory(history.getId(), history.getPrompts(), history.getSession()))
+                .map(history -> HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts()))
                 .toList();
     }
 
@@ -53,4 +56,10 @@ public class HistoryService {
         return historyRepository.save(history);
     }
 
+    private void validarAcessoUsuario(History history){
+        Usuario usuario = this.authService.getAuthenticatedUser();
+        if (!history.getUsuario().getId().equals(usuario.getId())) {
+            throw new ForbiddenOperationException("Acesso negado ao histórico #" + history.getId());
+        }
+    }
 }

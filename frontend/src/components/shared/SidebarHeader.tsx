@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import LogoMark from "./LogoMark";
-import { SquarePen, Plus } from "lucide-react";
+import LogoMark from "../shared/LogoMark";
+import { LayoutDashboard, SquarePen, Plus } from "lucide-react";
 
 const SidebarHeader = () => {
   return (
@@ -21,10 +21,17 @@ const SidebarHeader = () => {
       </div>
       <Link
         to="/"
-        className="flex items-center gap-2 w-full px-4 py-2.5 mb-5 rounded-xl bg-primary hover:bg-primary-hover text-foreground font-semibold text-sm transition-colors shadow-sm"
+        className="flex items-center gap-2 w-full px-4 py-2.5 mb-2 rounded-xl bg-primary hover:bg-primary-hover text-foreground font-semibold text-sm transition-colors shadow-sm"
       >
         <Plus size={16} strokeWidth={2.5} />
         Nova Conversa
+      </Link>
+      <Link
+        to="/dashboard"
+        className="flex items-center gap-2 w-full px-4 py-2.5 mb-5 rounded-xl text-foreground-secondary hover:bg-foreground/5 hover:text-foreground font-semibold text-sm transition-colors"
+      >
+        <LayoutDashboard size={16} strokeWidth={2.5} />
+        Painel
       </Link>
     </div>
   );

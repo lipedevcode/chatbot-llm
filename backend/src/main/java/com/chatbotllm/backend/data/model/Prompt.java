@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @Data
 @Builder
@@ -31,4 +33,7 @@ public class Prompt {
     @ManyToOne
     @JoinColumn(name="usuario_id")
     private Usuario usuario;
+
+    @OneToMany(mappedBy = "prompt", fetch = FetchType.LAZY)
+    private List<File> files;
 }

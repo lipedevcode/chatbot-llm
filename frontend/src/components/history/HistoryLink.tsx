@@ -1,26 +1,26 @@
 import { MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Prompt } from "../interfaces/database";
+import type { Prompt } from "../../interfaces/database";
+import { extractUserText } from "../../utils/promptutils";
 
 interface HistoryLinkProps {
   activeChatId?: string;
+  title?: string | null;
   history: Prompt[];
   id: number;
 }
 
+// Fallback usado quando o backend ainda não persistiu um título (conversas antigas).
 const extractTitle = (history: Prompt[]): string => {
-  const firstPrompt = history[0].text;
+  const firstPrompt = history[0]?.text;
   if (!firstPrompt) return "Nova conversa";
-  return firstPrompt.length > 28
-    ? firstPrompt.slice(0, 28) + "..."
-    : firstPrompt;
+  const userText = extractUserText(firstPrompt).trim();
+  if (!userText) return "Nova conversa";
+  return userText.length > 28 ? userText.slice(0, 28) + "..." : userText;
 };
 
-export const HistoryLink = ({
-  activeChatId,
-  history,
-  id,
-}: HistoryLinkProps) => {
+export const HistoryLink = ({ activeChatId, title, history, id }: HistoryLinkProps) => {
+  const label = title?.trim() ? title.trim() : extractTitle(history);
   return (
     <div className="flex flex-col gap-0.5">
       <Link
@@ -31,7 +31,7 @@ export const HistoryLink = ({
         }`}
       >
         <MessageCircle size={15} className="shrink-0 text-foreground-muted" />
-        <span className="truncate">{extractTitle(history)}</span>
+        <span className="truncate">{label}</span>
       </Link>
     </div>
   );
