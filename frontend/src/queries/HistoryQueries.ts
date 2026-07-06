@@ -7,7 +7,7 @@ import {
   streamMessage,
   type SendChatMessageRequest,
 } from "../services/chatService";
-import type { ChatHistory, Prompt } from "../interfaces/database";
+import type { Attachment, ChatHistory } from "../interfaces/database";
 
 // GET /api/v1/history/all/by-user
 export const useHistories = () =>
@@ -56,14 +56,25 @@ export interface UseChatStreamOptions {
   onNewChatComplete: (historyId: number) => void;
 }
 
+export interface StartStreamParams {
+  historyId: number | null;
+  userMessage: string;
+  // Arquivos a enviar (PDF). Quando presentes, o streaming vai por multipart.
+  files?: globalThis.File[];
+  // Metadados dos anexos para exibição otimista dos chips durante o streaming.
+  attachments?: Attachment[];
+}
+
 export interface UseChatStreamResult {
   // Texto da mensagem do usuário exibido otimisticamente.
   pendingUser: string | null;
+  // Anexos exibidos otimisticamente na bolha do usuário durante o streaming.
+  pendingAttachments: Attachment[];
   // Resposta parcial da LLM; null antes do primeiro token (mostra "digitando").
   streamingText: string | null;
   isStreaming: boolean;
   error: string | null;
-  start: (params: { historyId: number | null; userMessage: string }) => void;
+  start: (params: StartStreamParams) => void;
   reset: () => void;
 }
 
@@ -82,6 +93,7 @@ export const useChatStream = (
   }, [options]);
 
   const [pendingUser, setPendingUser] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,75 +112,54 @@ export const useChatStream = (
   const reset = useCallback(() => setError(null), []);
 
   const start = useCallback(
-    (params: { historyId: number | null; userMessage: string }) => {
+    (params: StartStreamParams) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       setPendingUser(params.userMessage);
+      setPendingAttachments(params.attachments ?? []);
       setStreamingText(null);
       setIsStreaming(true);
       setError(null);
 
-      let historyId = params.historyId;
-      let title: string | null = null;
       let answer = "";
 
       const finishError = (message: string) => {
         if (!mountedRef.current) return;
         setPendingUser(null);
+        setPendingAttachments([]);
         setStreamingText(null);
         setIsStreaming(false);
         setError(message);
       };
 
       streamMessage(
-        params,
+        { historyId: params.historyId, userMessage: params.userMessage, files: params.files },
         {
-          onMeta: (meta) => {
-            historyId = meta.historyId;
-            title = meta.title;
-          },
           onToken: (token) => {
             answer += token;
             if (mountedRef.current) setStreamingText(answer);
           },
-          onDone: (meta) => {
-            const id = meta.historyId ?? historyId;
+          onDone: (history) => {
+            const id = history.id;
             if (id == null) {
               finishError("Resposta de streaming sem id de conversa.");
               return;
             }
-            const finalTitle = meta.title ?? title;
 
-            // Semeia/atualiza o cache da conversa com a interação concluída, para
-            // que ela persista após limpar o estado local (e após navegar, no caso
-            // de conversa nova). A persistência no backend já ocorreu antes do
-            // evento "done", então um eventual refetch é consistente.
-            queryClient.setQueryData<ChatHistory>(["history", id], (prev) => {
-              const newPrompt: Prompt = {
-                text: params.userMessage,
-                response: { text: answer },
-                files: [],
-              };
-              const base: ChatHistory = prev ?? {
-                id,
-                title: finalTitle,
-                prompts: [],
-              };
-              return {
-                ...base,
-                id,
-                title: base.title ?? finalTitle,
-                prompts: [...(base.prompts ?? []), newPrompt],
-              };
-            });
+            // O backend devolve o histórico já atualizado (com a interação e os
+            // metadados dos anexos): semeamos o cache com ele — resposta
+            // autoritativa — evitando um GET e garantindo que os chips dos PDFs
+            // apareçam. Um eventual refetch depois é consistente.
+            queryClient.setQueryData<ChatHistory>(["history", id], history);
             queryClient.invalidateQueries({ queryKey: ["histories"] });
 
             const isNewChat = params.historyId == null;
             if (!isNewChat && mountedRef.current) {
               // Conversa existente: limpa o estado local; o cache já tem a interação.
               setPendingUser(null);
+              setPendingAttachments([]);
               setStreamingText(null);
               setIsStreaming(false);
             }
@@ -189,5 +180,13 @@ export const useChatStream = (
     [queryClient],
   );
 
-  return { pendingUser, streamingText, isStreaming, error, start, reset };
+  return {
+    pendingUser,
+    pendingAttachments,
+    streamingText,
+    isStreaming,
+    error,
+    start,
+    reset,
+  };
 };

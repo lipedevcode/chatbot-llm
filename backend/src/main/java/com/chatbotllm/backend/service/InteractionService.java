@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.service;
 
+import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.File;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.model.Prompt;
@@ -76,15 +77,21 @@ public class InteractionService {
      *
      * @param title título a definir quando a conversa ainda não tem um (primeira
      *              mensagem); {@code null} para não alterar o título existente.
+     * @param files anexos já persistidos ({@code FileService.createFromMultipartFiles})
+     *              a associar ao prompt; vazio/{@code null} quando não há anexos.
+     * @return o histórico já atualizado (com a interação e os anexos), montado
+     *         dentro desta transação para o cliente semear o cache sem um novo GET.
      */
     @Transactional
-    public void saveStreamedInteraction(Long historyId, String userMessage, String aiMessage, Usuario usuario, String title) {
+    public HistoryDto saveStreamedInteraction(Long historyId, String userMessage, String aiMessage, Usuario usuario, String title, List<File> files) {
         History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("History #" + historyId + " não encontrado"));
 
         if (title != null && (history.getTitle() == null || history.getTitle().isBlank())) {
             history.setTitle(title);
         }
+
+        List<File> safeFiles = Objects.requireNonNullElse(files, List.of());
 
         Response response = Response.builder()
                 .text(aiMessage)
@@ -97,7 +104,7 @@ public class InteractionService {
                 .history(history)
                 .response(response)
                 .usuario(usuario)
-                .files(List.of())
+                .files(safeFiles)
                 .build();
 
         promptRepository.save(prompt);
@@ -108,5 +115,12 @@ public class InteractionService {
         history.getPrompts().add(prompt);
 
         historyRepository.save(history);
+
+        if (!safeFiles.isEmpty()) {
+            safeFiles.forEach(file -> file.setPrompt(prompt));
+            fileRepository.saveAll(safeFiles);
+        }
+
+        return HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts());
     }
 }

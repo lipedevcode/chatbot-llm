@@ -16,6 +16,7 @@ import com.chatbotllm.backend.utils.PersistentChatMemoryStore;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -126,19 +127,78 @@ public class ChatService {
         boolean firstMessage = isFirstMessage(history);
 
         // Na primeira mensagem gera-se um título curto ANTES do streaming, para
-        // enviá-lo no evento inicial (meta). O título só é persistido ao concluir,
-        // junto da interação. Em conversas já iniciadas, reaproveita o título atual.
-        String title = firstMessage ? this.generateTitle(userMessage) : history.getTitle();
+        // enviá-lo no evento inicial (meta). O título só é persistido ao concluir.
+        // Em conversas já iniciadas, reaproveita o título atual.
+        String title = firstMessage ? this.generateTitle(userMessage, userMessage) : history.getTitle();
         String titleToPersist = firstMessage ? title : null;
 
-        // Capturado na thread da requisição — os callbacks abaixo não têm acesso ao
-        // SecurityContext.
+        // Capturado na thread da requisição — os callbacks de persistência rodam em
+        // thread de background, sem acesso ao SecurityContext.
         Usuario usuario = this.authService.getAuthenticatedUser();
 
+        return this.runStream(
+                resolvedHistoryId,
+                title,
+                this.streamingAssistant.chat(memoryId, userMessage),
+                finalAnswer -> this.interactionService.saveStreamedInteraction(
+                        resolvedHistoryId, userMessage, finalAnswer, usuario, titleToPersist, List.of()));
+    }
+
+    /**
+     * Variante de streaming com anexos (PDF): processa os arquivos (texto extraído e
+     * páginas renderizadas como imagem) e transmite a resposta token a token. Os
+     * anexos são persistidos junto da interação ao concluir. Sem arquivos, delega ao
+     * fluxo de texto puro.
+     */
+    public SseEmitter streamChatMessage(Long historyId, String userMessage, List<MultipartFile> multipartFiles) {
+        if (multipartFiles == null || multipartFiles.isEmpty()) {
+            return this.streamChatMessage(historyId, userMessage);
+        }
+
+        History history = this.historyService.resolveHistory(historyId);
+
+        if (history.getPrompts() == null) {
+            history.setPrompts(new ArrayList<>());
+        }
+
+        Long resolvedHistoryId = history.getId();
+        Long memoryId = history.getSession().getMemoryId();
+        boolean firstMessage = isFirstMessage(history);
+
+        List<File> files = this.fileService.createFromMultipartFiles(multipartFiles);
+        List<String> extractedTexts = this.fileService.getTextsFromFiles(files);
+        List<ImageContent> pagesPdf = this.fileService.getPagesImagesFromFiles(files);
+        String userMessageWithFiles = String.join("\n\n", extractedTexts) + "\n\n" + "## Prompt do usuário: " + userMessage;
+
+        // O título considera o conteúdo do anexo (userMessageWithFiles), mas o fallback
+        // usa apenas a mensagem crua, para não expor o conteúdo do documento no título.
+        String title = firstMessage ? this.generateTitle(userMessageWithFiles, userMessage) : history.getTitle();
+        String titleToPersist = firstMessage ? title : null;
+        Usuario usuario = this.authService.getAuthenticatedUser();
+
+        return this.runStream(
+                resolvedHistoryId,
+                title,
+                this.streamingAssistant.chat(memoryId, userMessageWithFiles, pagesPdf),
+                finalAnswer -> this.interactionService.saveStreamedInteraction(
+                        resolvedHistoryId, userMessageWithFiles, finalAnswer, usuario, titleToPersist, files));
+    }
+
+    /**
+     * Lógica comum do streaming SSE: envia o evento inicial (meta), repassa cada token
+     * e, ao concluir, persiste a interação (via {@code persister}) e envia o histórico
+     * atualizado no evento {@code done}. Os callbacks do {@link TokenStream} rodam em
+     * thread de background.
+     *
+     * @param persister recebe a resposta final acumulada, persiste a interação e
+     *                  devolve o histórico atualizado (com anexos, quando houver).
+     */
+    private SseEmitter runStream(Long historyId, String title, TokenStream tokenStream,
+                                 java.util.function.Function<String, HistoryDto> persister) {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
 
         try {
-            emitter.send(SseEmitter.event().name("meta").data(new ChatStreamEvents.Meta(resolvedHistoryId, title)));
+            emitter.send(SseEmitter.event().name("meta").data(new ChatStreamEvents.Meta(historyId, title)));
         } catch (IOException e) {
             log.warn("Cliente desconectou antes de iniciar o streaming: {}", e.getMessage());
             emitter.completeWithError(e);
@@ -148,7 +208,7 @@ public class ChatService {
         StringBuilder answer = new StringBuilder();
 
         try {
-            this.streamingAssistant.chat(memoryId, userMessage)
+            tokenStream
                     .onPartialResponse(token -> {
                         answer.append(token);
                         try {
@@ -161,11 +221,10 @@ public class ChatService {
                     .onCompleteResponse(response -> {
                         try {
                             // A memória da conversa é persistida automaticamente pelo langchain4j
-                            // (mesmo ChatMemoryProvider); aqui persistimos a interação (prompt +
-                            // resposta) e o título da primeira mensagem.
-                            this.interactionService.saveStreamedInteraction(
-                                    resolvedHistoryId, userMessage, answer.toString(), usuario, titleToPersist);
-                            emitter.send(SseEmitter.event().name("done").data(new ChatStreamEvents.Done(resolvedHistoryId, title)));
+                            // (mesmo ChatMemoryProvider); aqui persistimos a interação e enviamos
+                            // o histórico atualizado no evento done.
+                            HistoryDto updated = persister.apply(answer.toString());
+                            emitter.send(SseEmitter.event().name("done").data(new ChatStreamEvents.Done(updated)));
                             emitter.complete();
                         } catch (Exception e) {
                             log.error("Erro ao finalizar o streaming do chat: {}", e.getMessage(), e);
@@ -199,16 +258,18 @@ public class ChatService {
     }
 
     /**
-     * Gera o título curto da conversa a partir da mensagem do usuário. Em caso de
-     * falha na LLM, recorre ao fallback local ({@link ChatTitleService}), garantindo
-     * que a conversa sempre receba um título.
+     * Gera o título curto da conversa. O {@code llmInput} é o texto enviado à LLM
+     * (pode incluir o conteúdo do anexo) e o {@code fallbackSource} é a fonte do
+     * título de fallback (mensagem crua do usuário) — separados para não expor o
+     * conteúdo do documento no título quando a LLM falha. Em caso de falha, recorre
+     * ao fallback local ({@link ChatTitleService}), garantindo sempre um título.
      */
-    private String generateTitle(String userMessage) {
+    private String generateTitle(String llmInput, String fallbackSource) {
         try {
-            return this.chatTitleService.finalizeTitle(this.chatTitleAssistant.generateTitle(userMessage), userMessage);
+            return this.chatTitleService.finalizeTitle(this.chatTitleAssistant.generateTitle(llmInput), fallbackSource);
         } catch (Exception e) {
             log.warn("Falha ao gerar título via LLM no streaming; usando fallback local.", e);
-            return this.chatTitleService.finalizeTitle(null, userMessage);
+            return this.chatTitleService.finalizeTitle(null, fallbackSource);
         }
     }
 

@@ -6,11 +6,7 @@ import ChatInputBar, {
 import WelcomeScreen from "../components/shared/WelcomeScreen.tsx";
 import ChatHistory from "../components/history/ChatHistory.tsx";
 import ErrorBanner from "../components/shared/ErrorBanner.tsx";
-import {
-  useChatStream,
-  useHistoryById,
-  useSendMessage,
-} from "../queries/HistoryQueries.ts";
+import { useChatStream, useHistoryById } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
 
 const ChatArea = () => {
@@ -28,21 +24,11 @@ const ChatArea = () => {
     isLoading: isHistoryLoading,
   } = useHistoryById(hasChatId ? numericChatId : null);
 
-  // Fluxo de streaming (SSE) — usado para mensagens de texto.
+  // Fluxo de streaming (SSE) — usado para todas as mensagens (texto e anexos).
   const stream = useChatStream({
     onNewChatComplete: (id) => navigate(`/chat/${id}`, { replace: true }),
   });
 
-  // Fluxo não-streaming — usado apenas quando há anexos, que continuam pelo
-  // endpoint multipart. O endpoint de streaming atende só mensagens de texto.
-  const {
-    mutate: send,
-    isPending: isSending,
-    isError: isSendError,
-  } = useSendMessage();
-
-  // Mensagem otimista do caminho com anexos (o de streaming usa stream.pendingUser).
-  const [pendingFile, setPendingFile] = useState<string | null>(null);
   // Último envio, mantido para permitir reenvio em caso de falha.
   const [lastSent, setLastSent] = useState<{
     text: string;
@@ -51,12 +37,12 @@ const ChatArea = () => {
 
   const prompts = history?.prompts ?? [];
 
-  const isBusy = stream.isStreaming || isSending;
-  const hasError = isSendError || stream.error != null;
+  const isBusy = stream.isStreaming;
+  const hasError = stream.error != null;
 
-  // Bolha otimista da mensagem em andamento (streaming OU anexo). No streaming, a
-  // resposta parcial cresce token a token; antes do primeiro token, response é
-  // null e a bolha exibe o indicador de "digitando".
+  // Bolha otimista da mensagem em andamento. A resposta parcial cresce token a
+  // token; antes do primeiro token, response é null e a bolha exibe o indicador
+  // de "digitando". Os anexos aparecem otimisticamente como chips.
   const optimistic: Prompt | null =
     stream.pendingUser != null
       ? {
@@ -66,10 +52,9 @@ const ChatArea = () => {
               ? { text: stream.streamingText }
               : null,
           files: [],
+          attachments: stream.pendingAttachments,
         }
-      : pendingFile != null
-        ? { text: pendingFile, response: null, files: [] }
-        : null;
+      : null;
 
   const displayedPrompts: Prompt[] = optimistic
     ? [...prompts, optimistic]
@@ -78,38 +63,15 @@ const ChatArea = () => {
   const submit = (text: string, attachedFiles?: AttachedFile[]) => {
     setLastSent({ text, attachments: attachedFiles });
     stream.reset();
-
-    if (attachedFiles && attachedFiles.length > 0) {
-      // Caminho com anexos: fluxo não-streaming (multipart).
-      setPendingFile(text);
-      send(
-        {
-          historyId: hasChatId ? numericChatId : null,
-          userMessage: text,
-          files: attachedFiles.map((a) => a.file),
-        },
-        {
-          onSuccess: (data) => {
-            // O cache já foi semeado com o histórico atualizado (useSendMessage);
-            // limpar a bolha otimista aqui evita duplicar o prompt.
-            setPendingFile(null);
-            if (!hasChatId && data.history.id) {
-              navigate(`/chat/${data.history.id}`, { replace: true });
-            }
-          },
-          onError: () => {
-            // Remove a bolha otimista; o texto fica em lastSent para reenvio.
-            setPendingFile(null);
-          },
-        },
-      );
-      return;
-    }
-
-    // Caminho só de texto: streaming SSE.
     stream.start({
       historyId: hasChatId ? numericChatId : null,
       userMessage: text,
+      files: attachedFiles?.map((a) => a.file),
+      attachments: attachedFiles?.map((a) => ({
+        id: a.name,
+        name: a.name,
+        extension: a.extension,
+      })),
     });
   };
 
@@ -128,7 +90,11 @@ const ChatArea = () => {
     // Carregando um chat existente: evita piscar a tela de boas-vindas.
     if (isHistoryLoading && !optimistic) return null;
     return (
-      <ChatHistory prompts={displayedPrompts} isAwaitingResponse={isBusy} />
+      <ChatHistory
+        prompts={displayedPrompts}
+        isAwaitingResponse={isBusy}
+        lastIsOptimistic={optimistic != null}
+      />
     );
   };
 

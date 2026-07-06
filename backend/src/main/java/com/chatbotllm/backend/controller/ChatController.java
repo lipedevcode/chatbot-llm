@@ -60,4 +60,19 @@ public class ChatController {
                 sendChatMessageRequest.getHistoryId(), sendChatMessageRequest.getUserMessage());
     }
 
+    /**
+     * Variante multipart do streaming (SSE): recebe a mensagem e os anexos (PDF) e
+     * transmite a resposta token a token. Mensagem opcional — um documento sozinho é
+     * resumido; só bloqueia se não vier nem texto nem arquivo.
+     */
+    @PostMapping(value = "/message/stream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamChatMessage(@RequestParam(value = "historyId", required = false) Long historyId,
+                                        @RequestParam(value = "message", required = false, defaultValue = "") String message,
+                                        @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+        if (message.isBlank() && (files == null || files.isEmpty())) {
+            throw new BadRequestException("Envie uma mensagem ou anexe um documento.");
+        }
+        return this.chatService.streamChatMessage(historyId, message, files);
+    }
+
 }

@@ -44,6 +44,7 @@ export const sendMessage = async (
 export interface StreamMessageRequest {
   historyId?: number | null;
   userMessage: string;
+  files?: globalThis.File[];
 }
 
 export interface StreamMeta {
@@ -56,18 +57,20 @@ export interface StreamCallbacks {
   onMeta?: (meta: StreamMeta) => void;
   // Cada fragmento de texto da resposta da LLM.
   onToken?: (text: string) => void;
-  // Conclusão bem-sucedida, após o backend persistir a interação.
-  onDone?: (meta: StreamMeta) => void;
+  // Conclusão bem-sucedida: o backend devolve o histórico já atualizado (com a
+  // interação e os metadados dos anexos), para semear o cache sem um novo GET.
+  onDone?: (history: ChatHistory) => void;
   // Erro reportado pelo backend durante a geração.
   onError?: (message: string) => void;
 }
 
 /**
- * Envia uma mensagem de texto e consome a resposta da LLM em streaming (SSE) via
- * fetch + ReadableStream. Usamos fetch em vez de EventSource porque o EventSource
- * nativo só faz GET e não permite enviar o header Authorization.
+ * Envia uma mensagem e consome a resposta da LLM em streaming (SSE) via fetch +
+ * ReadableStream. Usamos fetch em vez de EventSource porque o EventSource nativo
+ * só faz GET e não permite enviar o header Authorization nem anexos.
  *
- * O backend emite eventos nomeados (meta, token, done, error) com dados em JSON.
+ * Sem anexos envia JSON; com anexos (PDF) envia multipart/form-data. O backend
+ * emite eventos nomeados (meta, token, done, error) com dados em JSON.
  */
 export const streamMessage = async (
   body: StreamMessageRequest,
@@ -75,17 +78,39 @@ export const streamMessage = async (
   signal?: AbortSignal,
 ): Promise<void> => {
   const token = localStorage.getItem("token");
-  const response = await fetch("/api/v1/chat/message/stream", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
+  const authHeader: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+  const hasFiles = body.files && body.files.length > 0;
+
+  let requestBody: BodyInit;
+  let headers: Record<string, string>;
+  if (hasFiles) {
+    const formData = new FormData();
+    formData.append("message", body.userMessage);
+    if (body.historyId != null) {
+      formData.append("historyId", String(body.historyId));
+    }
+    body.files!.forEach((file) => formData.append("files", file));
+    requestBody = formData;
+    // Sem Content-Type: o browser define o boundary do multipart automaticamente.
+    headers = { Accept: "text/event-stream", ...authHeader };
+  } else {
+    requestBody = JSON.stringify({
       historyId: body.historyId ?? null,
       userMessage: body.userMessage,
-    }),
+    });
+    headers = {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...authHeader,
+    };
+  }
+
+  const response = await fetch("/api/v1/chat/message/stream", {
+    method: "POST",
+    headers,
+    body: requestBody,
     signal,
   });
 
@@ -166,7 +191,7 @@ const dispatchSseEvent = (raw: string, callbacks: StreamCallbacks): void => {
       callbacks.onToken?.((payload as { text?: string }).text ?? "");
       break;
     case "done":
-      callbacks.onDone?.(payload as StreamMeta);
+      callbacks.onDone?.((payload as { history: ChatHistory }).history);
       break;
     case "error":
       callbacks.onError?.(
