@@ -28,7 +28,10 @@ Aplicação full-stack de chatbot com IA construída com **Spring Boot 4**, **La
 - **Chat com IA** usando o modelo Gemini Flash Lite (Google)
 - **Histórico persistente** — conversas são salvas e podem ser retomadas entre sessões
 - **Sliding memory window** — as últimas N mensagens são mantidas no contexto da LLM, enquanto o histórico completo é preservado no banco
-- **Autenticação JWT** com signup automático de usuário anônimo (sem formulário)
+- **Autenticação JWT** com registro e login reais via email/senha
+- **Título de conversa gerado automaticamente** pela IA na primeira mensagem, em uma única chamada à LLM junto com a resposta
+- **Envio de documentos (PDF) no chat**, com ou sem mensagem de texto — o sistema resume o conteúdo automaticamente
+- **Dashboard do usuário** — edição de perfil, listagem de documentos enviados (com visualização do PDF e do resumo gerado pela IA em Markdown) e acesso rápido às conversas recentes
 - **Renderização de Markdown** nas respostas da IA
 - **Deploy containerizado** via Docker Compose com Nginx como reverse proxy
 - **Documentação OpenAPI/Swagger** disponível em `/swagger-ui.html`
@@ -115,8 +118,12 @@ classDiagram
   direction LR
 
   class Usuario {
-      -int id PK
-      -string subject
+      -long id PK
+      -string nome
+      -string username
+      -string email
+      -string password
+      -Instant createdAt
       -List~History~ histories
   }
   class Session {
@@ -125,6 +132,7 @@ classDiagram
   }
   class History {
       -int id PK
+      -string title
       -Usuario usuario
       -Session session
       -List~Prompt~ prompts
@@ -135,26 +143,37 @@ classDiagram
       -History history
       -Usuario usuario
       -Response response
+      -List~File~ files
   }
   class Response {
       -int id PK
       -string text
+  }
+  class File {
+      -UUID id PK
+      -string filename
+      -bytes fileData
+      -string text
+      -List~string~ pagesBase64
+      -Prompt prompt
   }
 
   Usuario "1" --> "N" History : possui
   History "1" --> "1" Session : contém
   History "1" --> "N" Prompt : contém
   Prompt "1" --> "1" Response : possui
+  Prompt "1" --> "N" File : anexa
 ```
 ### Descrição das Entidades
 
 | Entidade | Propósito |
 |----------|-----------|
-| **Usuario** | Representa um usuário anônimo identificado pelo subject do JWT |
-| **History** | Registro completo da conversa, vinculando usuário, session e prompts |
+| **Usuario** | Usuário cadastrado (nome, username, email e senha), autenticado via JWT |
+| **History** | Registro completo da conversa, com título (gerado pela IA) vinculando usuário, session e prompts |
 | **Session** | Contexto de sliding window armazenado como JSON (últimas N mensagens para a IA) |
-| **Prompt** | Mensagem individual do usuário dentro de uma conversa |
+| **Prompt** | Mensagem individual do usuário dentro de uma conversa, podendo conter arquivos anexados |
 | **Response** | Resposta gerada pela IA para um prompt específico |
+| **File** | Documento (PDF) enviado pelo usuário: bytes originais, texto extraído e páginas renderizadas como imagem (para a IA "ler" o conteúdo visualmente) |
 
 ---
 
@@ -172,25 +191,33 @@ sequenceDiagram
     participant AI as Gemini API
 
      rect rgb(230, 245, 255)
-        Note over U,AI: Fluxo de Autenticação (Usuário não autenticado)
-        U->>FE: Abre a aplicação
-        FE->>BE: POST /api/v1/auth/signup
-        BE->>DB: Cria usuário anônimo
+        Note over U,AI: Registro (novo usuário)
+        U->>FE: Preenche formulário de cadastro
+        FE->>BE: POST /api/v1/auth/signup<br/>{nome, username, email, password}
+        BE->>DB: Valida unicidade (username/email) e cria Usuario
+        BE-->>FE: Retorna token JWT
+        FE->>FE: Armazena token no localStorage
+    end
+
+    rect rgb(230, 245, 255)
+        Note over U,AI: Login (usuário existente)
+        U->>FE: Preenche email e senha
+        FE->>BE: POST /api/v1/auth/login<br/>{email, password}
+        BE->>DB: Busca usuário e valida senha
         BE-->>FE: Retorna token JWT
         FE->>FE: Armazena token no localStorage
     end
 
     rect rgb(255, 245, 230)
         Note over U,AI: Primeira Mensagem (historyId: null)
-        U->>FE: Digita uma mensagem
+        U->>FE: Digita mensagem e/ou anexa um documento
         FE->>FE: Lê token do localStorage
-        FE->>BE: POST /api/v1/chat/message<br/>{historyId: null, userMessage: "..."}<br/>Authorization: Bearer <token>
-        BE->>BE: Valida token JWT
-        BE->>DB: Cria novo History
-        BE->>DB: Cria novo Session
-        BE->>AI: Envia mensagem + system prompt
-        AI-->>BE: Retorna resposta da IA
-        BE->>DB: Salva prompt + response
+        FE->>BE: POST /api/v1/chat/message (multipart)<br/>{historyId: null, message?, files?}<br/>Authorization: Bearer <token>
+        BE->>BE: Valida token JWT (message e/ou files obrigatórios)
+        BE->>DB: Cria novo History + Session
+        BE->>AI: Envia mensagem/documento + system prompt<br/>(gera título + resposta em uma única chamada)
+        AI-->>BE: Retorna título + resposta da IA
+        BE->>DB: Salva title no History, prompt + response (+ arquivos)
         BE->>DB: Atualiza session messages (JSON)
         BE-->>FE: Retorna {history, aiMessage}
         FE->>FE: Renderiza resposta da IA (Markdown)
@@ -199,7 +226,7 @@ sequenceDiagram
     rect rgb(230, 255, 230)
         Note over U,AI: Mensagens Seguintes (historyId: N)
         U->>FE: Digita mensagem de acompanhamento
-        FE->>BE: POST /api/v1/chat/message<br/>{historyId: 1, userMessage: "..."}<br/>Authorization: Bearer <token>
+        FE->>BE: POST /api/v1/chat/message (multipart)<br/>{historyId: 1, message: "..."}<br/>Authorization: Bearer <token>
         BE->>BE: Valida token JWT
         BE->>DB: Busca History + Session existentes
         BE->>DB: Carrega últimas N mensagens (sliding window)
@@ -225,17 +252,18 @@ sequenceDiagram
 
 | Etapa | Descrição |
 |-------|-----------|
-| **1. Signup** | Usuário abre a aplicação → frontend faz signup automático → backend cria usuário anônimo + JWT → token armazenado no `localStorage` |
-| **2. Primeira Mensagem** | Usuário envia mensagem com `historyId: null` → backend cria novo `History` + `Session` → envia para Gemini → salva resposta |
+| **1. Registro/Login** | Usuário cria conta (`/auth/signup`) ou entra com credenciais existentes (`/auth/login`) → backend retorna JWT → token armazenado no `localStorage` |
+| **2. Primeira Mensagem** | Usuário envia mensagem e/ou documento com `historyId: null` → backend cria novo `History` + `Session` → gera título e resposta em uma única chamada à IA → salva tudo |
 | **3. Continuar Chat** | Mensagens seguintes incluem `historyId` → backend carrega sliding window da `Session` → mantém contexto |
 | **4. Visualizar Histórico** | Usuário recupera conversa completa → backend retorna `History` com todos os prompts/responses |
 
 ### Conceitos-Chave
 
-- **`historyId: null`** dispara a criação de uma nova conversa (History + Session)
+- **`historyId: null`** dispara a criação de uma nova conversa (History + Session) e a geração automática do título
 - **`historyId: N`** continua uma conversa existente com contexto de sliding memory
 - **JWT Token** é armazenado uma vez no `localStorage` e enviado em cada header de requisição autenticada
 - **Sliding Window** mantém apenas as últimas N mensagens na session para o contexto da IA, enquanto o histórico completo persiste no DB
+- **`message` e `files` são independentes** — é possível enviar apenas um documento sem texto; o backend exige que ao menos um dos dois esteja presente
 
 ---
 
@@ -378,22 +406,58 @@ Authorization: Bearer <jwt_token>
 
 | Método | Endpoint | Descrição | Auth |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/signup` | Cria um usuário anônimo e retorna um JWT | Não |
+| `POST` | `/api/v1/auth/signup` | Cria um usuário (`nome`, `username`, `email`, `password`) e retorna um JWT | Não |
+| `POST` | `/api/v1/auth/login` | Autentica com `email` + `password` e retorna um JWT | Não |
+
+**Body do `POST /auth/signup`:**
+
+```json
+{
+  "nome": "Ada Lovelace",
+  "username": "ada",
+  "email": "ada@example.com",
+  "password": "senha-segura"
+}
+```
+
+**Body do `POST /auth/login`:**
+
+```json
+{
+  "email": "ada@example.com",
+  "password": "senha-segura"
+}
+```
+
+#### Usuário
+
+| Método | Endpoint | Descrição | Auth |
+|---|---|---|---|
+| `GET` | `/api/v1/users/me` | Retorna o perfil do usuário autenticado (`id`, `nome`, `username`, `email`, `createdAt`) | Sim |
+| `PUT` | `/api/v1/users/me` | Atualiza `nome` e/ou `email` do usuário autenticado (campos opcionais) | Sim |
 
 #### Chat
 
 | Método | Endpoint | Descrição | Auth |
 |---|---|---|---|
-| `POST` | `/api/v1/chat/message` | Envia uma mensagem. Use `historyId: null` para iniciar um novo chat | Sim |
+| `POST` | `/api/v1/chat/message` | Envia uma mensagem `multipart/form-data` (`historyId`, `message`, `files[]`). Use `historyId` vazio para iniciar um novo chat. `message` e `files` são opcionais, mas ao menos um deve ser enviado | Sim |
 
-**Body do `POST /chat/message`:**
+**Campos do `POST /chat/message` (multipart):**
 
-```json
-{
-  "historyId": null,
-  "userMessage": "Olá, como você pode me ajudar?"
-}
-```
+| Campo | Obrigatório | Descrição |
+|---|---|---|
+| `historyId` | Não | Omitido/nulo para iniciar uma nova conversa |
+| `message` | Não* | Texto da mensagem do usuário |
+| `files` | Não* | Um ou mais arquivos (PDF) anexados |
+
+\* ao menos um dos dois (`message` ou `files`) deve ser enviado — um documento sozinho é aceito e resumido automaticamente.
+
+#### Arquivos
+
+| Método | Endpoint | Descrição | Auth |
+|---|---|---|---|
+| `GET` | `/api/v1/files` | Lista os arquivos enviados pelo usuário autenticado, com o resumo gerado pela IA | Sim |
+| `GET` | `/api/v1/files/{id}` | Retorna os bytes do PDF (`Content-Type: application/pdf`) para visualização/download | Sim |
 
 #### Histórico
 
@@ -405,16 +469,22 @@ Authorization: Bearer <jwt_token>
 ### Exemplo completo com cURL
 
 ```bash
-# 1. Criar usuário e obter token
-TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/signup)
+# 1. Criar usuário
+curl -s -X POST http://localhost/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"nome": "Ada Lovelace", "username": "ada", "email": "ada@example.com", "password": "senha-segura"}'
 
-# 2. Enviar uma mensagem (novo chat)
+# 2. Fazer login e obter o token
+TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "ada@example.com", "password": "senha-segura"}')
+
+# 3. Enviar uma mensagem (novo chat)
 curl -s -X POST http://localhost/api/v1/chat/message \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"historyId": null, "userMessage": "Quem foi Ada Lovelace?"}'
+  -F "message=Quem foi Ada Lovelace?"
 
-# 3. Listar históricos do usuário
+# 4. Listar históricos do usuário
 curl -s http://localhost/api/v1/history/all/by-user \
   -H "Authorization: Bearer $TOKEN"
 ```
@@ -423,7 +493,7 @@ curl -s http://localhost/api/v1/history/all/by-user \
 
 ## Sistema de memória
 
-O chatbot usa uma **arquitetura dual de memória** para equilibrar custo, latência e qualidade das respostas.
+O chatbot usa uma **arquitetura dual de memória** para equilibrar custo, latência e qualidade das respostas. Na primeira mensagem de cada conversa, a mesma chamada à LLM que gera a resposta também gera o **título da conversa** (ver [Fluxo da Aplicação](#fluxo-da-aplicação)), evitando uma segunda chamada dedicada só para isso.
 
 ### History — registro completo
 
@@ -485,33 +555,41 @@ chatbot-llm/
 │   ├── Dockerfile
 │   ├── pom.xml
 │   └── src/main/java/com/chatbotllm/backend/
-│       ├── controller/        # REST controllers (Auth, Chat, History)
+│       ├── controller/        # REST controllers (Auth, Usuario, Chat, History, File)
 │       ├── service/           # Lógica de negócio e integração com IA
-│       │   ├── AuthService    # Signup + autenticação
-│       │   ├── ChatService    # Orquestra a chamada à LLM
-│       │   ├── HistoryService # Cria e consulta históricos
+│       │   ├── AuthService        # Signup + login
+│       │   ├── UsuarioService     # Consulta/atualização de perfil
+│       │   ├── ChatService        # Orquestra a chamada à LLM
+│       │   ├── ChatTitleService   # Sanitiza/normaliza o título gerado pela IA
+│       │   ├── FileService        # Armazena e recupera documentos (PDF)
+│       │   ├── HistoryService     # Cria e consulta históricos
 │       │   └── InteractionService # Persiste prompts e respostas
 │       ├── data/
-│       │   ├── model/         # Entidades JPA (History, Session, Prompt, etc.)
+│       │   ├── model/         # Entidades JPA (Usuario, History, Session, Prompt, File, etc.)
 │       │   ├── dto/           # Objetos de transferência de dados
 │       │   ├── request/       # Payloads de entrada
 │       │   └── response/      # Payloads de saída
+│       ├── exception/         # GlobalExceptionHandler + exceções customizadas (400/401/403/404/409)
 │       ├── repositories/      # Interfaces Spring Data JPA
 │       ├── security/          # JWT (JwtService, JwtAuthFilter, SecurityConfig)
-│       ├── inteface/personas/ # GenericAssistant (AiService do LangChain4j)
+│       ├── inteface/personas/ # GenericAssistant e TitledAssistant (AiService do LangChain4j)
 │       └── utils/             # PersistentChatMemoryStore
 │
 ├── frontend/
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/
-│       ├── app/               # Configuração de rotas (React Router)
-│       ├── components/        # Componentes reutilizáveis
+│       ├── components/
+│       │   ├── forms/         # LoginForm, RegisterForm
+│       │   ├── shared/        # RequireAuth, RedirectIfAuth, FileChip, SideBar, etc.
+│       │   ├── history/       # HistoryLink, HistoryList
+│       │   ├── input/         # ChatInputBar
+│       │   └── messages/      # UserMessage, MessageBubble, ModelResponse (Markdown)
 │       ├── layouts/           # Layout principal (sidebar + área de chat)
-│       ├── pages/             # ChatPage, NotFoundPage
+│       ├── pages/             # ChatPage, DashboardPage, LoginPage, RegisterPage, NotFoundPage
 │       ├── providers/         # AuthProvider (gerencia JWT no localStorage)
-│       ├── queries/           # Hooks TanStack Query (useHistories, useSendMessage, etc.)
-│       ├── services/          # Clientes HTTP (api.ts, chatService.ts)
+│       ├── queries/           # Hooks TanStack Query (HistoryQueries, FileQueries, UserQueries)
+│       ├── services/          # Clientes HTTP (api, authService, chatService, fileService, userService)
 │       └── interfaces/        # Tipos TypeScript do domínio
 └── Docker-explain.md          # Documentação detalhada da infra Docker
 ```
@@ -530,7 +608,7 @@ cd backend
 Cobertura atual:
 
 - `AuthController`, `ChatController`, `HistoryController`
-- `AuthService`, `HistoryService`, `InteractionService`
+- `AuthService`, `HistoryService`, `InteractionService`, `ChatTitleService`
 - `JwtService`
 
 ---
