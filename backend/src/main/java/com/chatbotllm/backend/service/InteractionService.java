@@ -1,9 +1,12 @@
 package com.chatbotllm.backend.service;
 
+import com.chatbotllm.backend.data.dto.HistoryDto;
 import com.chatbotllm.backend.data.model.File;
 import com.chatbotllm.backend.data.model.History;
 import com.chatbotllm.backend.data.model.Prompt;
 import com.chatbotllm.backend.data.model.Response;
+import com.chatbotllm.backend.data.model.Usuario;
+import com.chatbotllm.backend.exception.ResourceNotFoundException;
 import com.chatbotllm.backend.repositories.FileRepository;
 import com.chatbotllm.backend.repositories.HistoryRepository;
 import com.chatbotllm.backend.repositories.PromptRepository;
@@ -12,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -58,5 +62,65 @@ public class InteractionService {
             safeFiles.forEach(file -> file.setPrompt(prompt));
             fileRepository.saveAll(safeFiles);
         }
+    }
+
+    /**
+     * Persiste uma interação produzida pelo fluxo de streaming.
+     * <p>
+     * Diferente de {@link #saveInteraction(String, String, History, List)}, recebe
+     * o {@code historyId} e o {@code usuario} explicitamente — e re-busca o
+     * {@link History} dentro desta transação — porque é chamada no callback de
+     * conclusão do stream, que roda em uma thread de background sem
+     * {@code SecurityContext} nem sessão do Hibernate aberta (sem OSIV). Assim
+     * evitamos acessar coleções lazy de uma entidade desanexada e a leitura do
+     * usuário autenticado a partir do contexto de segurança.
+     *
+     * @param title título a definir quando a conversa ainda não tem um (primeira
+     *              mensagem); {@code null} para não alterar o título existente.
+     * @param files anexos já persistidos ({@code FileService.createFromMultipartFiles})
+     *              a associar ao prompt; vazio/{@code null} quando não há anexos.
+     * @return o histórico já atualizado (com a interação e os anexos), montado
+     *         dentro desta transação para o cliente semear o cache sem um novo GET.
+     */
+    @Transactional
+    public HistoryDto saveStreamedInteraction(Long historyId, String userMessage, String aiMessage, Usuario usuario, String title, List<File> files) {
+        History history = historyRepository.findById(historyId)
+                .orElseThrow(() -> new ResourceNotFoundException("History #" + historyId + " não encontrado"));
+
+        if (title != null && (history.getTitle() == null || history.getTitle().isBlank())) {
+            history.setTitle(title);
+        }
+
+        List<File> safeFiles = Objects.requireNonNullElse(files, List.of());
+
+        Response response = Response.builder()
+                .text(aiMessage)
+                .build();
+
+        responseRepository.save(response);
+
+        Prompt prompt = Prompt.builder()
+                .text(userMessage)
+                .history(history)
+                .response(response)
+                .usuario(usuario)
+                .files(safeFiles)
+                .build();
+
+        promptRepository.save(prompt);
+
+        if (history.getPrompts() == null) {
+            history.setPrompts(new ArrayList<>());
+        }
+        history.getPrompts().add(prompt);
+
+        historyRepository.save(history);
+
+        if (!safeFiles.isEmpty()) {
+            safeFiles.forEach(file -> file.setPrompt(prompt));
+            fileRepository.saveAll(safeFiles);
+        }
+
+        return HistoryDto.fromHistory(history.getId(), history.getTitle(), history.getPrompts());
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.net.URI;
 import java.util.List;
@@ -45,6 +46,33 @@ public class ChatController {
         return ResponseEntity
                 .created(URI.create("/api/v1/history/" + sendChatMessageResponse.getHistory().id()))
                 .body(sendChatMessageResponse);
+    }
+
+    /**
+     * Variante de streaming (SSE) do envio de mensagem de texto: transmite a
+     * resposta da LLM token a token. Emite os eventos {@code meta} (id + título),
+     * {@code token} (fragmentos), {@code done} (conclusão) e {@code error}.
+     * Mensagens com anexos continuam pelo endpoint multipart não-streaming acima.
+     */
+    @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamChatMessage(@Valid @RequestBody SendChatMessageRequest sendChatMessageRequest) {
+        return this.chatService.streamChatMessage(
+                sendChatMessageRequest.getHistoryId(), sendChatMessageRequest.getUserMessage());
+    }
+
+    /**
+     * Variante multipart do streaming (SSE): recebe a mensagem e os anexos (PDF) e
+     * transmite a resposta token a token. Mensagem opcional — um documento sozinho é
+     * resumido; só bloqueia se não vier nem texto nem arquivo.
+     */
+    @PostMapping(value = "/message/stream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamChatMessage(@RequestParam(value = "historyId", required = false) Long historyId,
+                                        @RequestParam(value = "message", required = false, defaultValue = "") String message,
+                                        @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+        if (message.isBlank() && (files == null || files.isEmpty())) {
+            throw new BadRequestException("Envie uma mensagem ou anexe um documento.");
+        }
+        return this.chatService.streamChatMessage(historyId, message, files);
     }
 
 }

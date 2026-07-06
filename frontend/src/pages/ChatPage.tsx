@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ChatInputBar, {
   type AttachedFile,
@@ -6,9 +6,8 @@ import ChatInputBar, {
 import WelcomeScreen from "../components/shared/WelcomeScreen.tsx";
 import ChatHistory from "../components/history/ChatHistory.tsx";
 import ErrorBanner from "../components/shared/ErrorBanner.tsx";
-import { useHistoryById, useSendMessage } from "../queries/HistoryQueries.ts";
+import { useChatStream, useHistoryById } from "../queries/HistoryQueries.ts";
 import type { Prompt } from "../interfaces/database";
-import { extractUserText } from "../utils/promptutils.ts";
 
 const ChatArea = () => {
   const location = useLocation();
@@ -24,11 +23,13 @@ const ChatArea = () => {
     isError: isHistoryError,
     isLoading: isHistoryLoading,
   } = useHistoryById(hasChatId ? numericChatId : null);
-  const { mutate: send, isPending, isError: isSendError } = useSendMessage();
 
-  // Mensagem do usuário exibida otimisticamente, antes da resposta da LLM chegar.
-  const [pending, setPending] = useState<string | null>(null);
-  // Último texto enviado, mantido para permitir reenvio em caso de falha.
+  // Fluxo de streaming (SSE) — usado para todas as mensagens (texto e anexos).
+  const stream = useChatStream({
+    onNewChatComplete: (id) => navigate(`/chat/${id}`, { replace: true }),
+  });
+
+  // Último envio, mantido para permitir reenvio em caso de falha.
   const [lastSent, setLastSent] = useState<{
     text: string;
     attachments?: AttachedFile[];
@@ -36,43 +37,46 @@ const ChatArea = () => {
 
   const prompts = history?.prompts ?? [];
 
-  // Limpa a mensagem otimista assim que o backend devolve o prompt já respondido.
-  useEffect(() => {
-    if (pending && prompts.some((p) => extractUserText(p.text) === pending && p.response)) {
-      setPending(null);
-    }
-  }, [prompts, pending]);
+  const isBusy = stream.isStreaming;
+  const hasError = stream.error != null;
 
-  const displayedPrompts: Prompt[] = pending
-    ? [...prompts, { text: pending, response: null, files: [] }]
+  // Bolha otimista da mensagem em andamento. A resposta parcial cresce token a
+  // token; antes do primeiro token, response é null e a bolha exibe o indicador
+  // de "digitando". Os anexos aparecem otimisticamente como chips.
+  const optimistic: Prompt | null =
+    stream.pendingUser != null
+      ? {
+          text: stream.pendingUser,
+          response:
+            stream.streamingText != null
+              ? { text: stream.streamingText }
+              : null,
+          files: [],
+          attachments: stream.pendingAttachments,
+        }
+      : null;
+
+  const displayedPrompts: Prompt[] = optimistic
+    ? [...prompts, optimistic]
     : prompts;
 
   const submit = (text: string, attachedFiles?: AttachedFile[]) => {
-    setPending(text);
     setLastSent({ text, attachments: attachedFiles });
-    send(
-      {
-        historyId: hasChatId ? numericChatId : null,
-        userMessage: text,
-        files: attachedFiles?.map((a) => a.file),
-      },
-      {
-        onSuccess: (data) => {
-          // Novo chat: navega para o id retornado pelo backend
-          if (!hasChatId && data.history.id) {
-            navigate(`/chat/${data.history.id}`, { replace: true });
-          }
-        },
-        onError: () => {
-          // Remove a bolha otimista; o texto fica em lastSent para reenvio.
-          setPending(null);
-        },
-      },
-    );
+    stream.reset();
+    stream.start({
+      historyId: hasChatId ? numericChatId : null,
+      userMessage: text,
+      files: attachedFiles?.map((a) => a.file),
+      attachments: attachedFiles?.map((a) => ({
+        id: a.name,
+        name: a.name,
+        extension: a.extension,
+      })),
+    });
   };
 
   const showWelcome =
-    isRoot && !pending && !isSendError && prompts.length === 0;
+    isRoot && !optimistic && !hasError && prompts.length === 0;
 
   const renderContent = () => {
     if (isHistoryError) {
@@ -84,9 +88,13 @@ const ChatArea = () => {
     }
     if (showWelcome) return <WelcomeScreen />;
     // Carregando um chat existente: evita piscar a tela de boas-vindas.
-    if (isHistoryLoading && !pending) return null;
+    if (isHistoryLoading && !optimistic) return null;
     return (
-      <ChatHistory prompts={displayedPrompts} isAwaitingResponse={isPending} />
+      <ChatHistory
+        prompts={displayedPrompts}
+        isAwaitingResponse={isBusy}
+        lastIsOptimistic={optimistic != null}
+      />
     );
   };
 
@@ -96,7 +104,7 @@ const ChatArea = () => {
         {renderContent()}
       </div>
 
-      {isSendError && lastSent && (
+      {hasError && lastSent && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-2">
           <ErrorBanner
             message="Falha ao enviar a mensagem."
@@ -105,13 +113,19 @@ const ChatArea = () => {
         </div>
       )}
 
-      <ChatInputBar onSend={submit} isPending={isPending} />
+      <ChatInputBar onSend={submit} isPending={isBusy} />
     </div>
   );
 };
 
 const ChatPage = () => {
-  return <ChatArea />;
+  // As rotas "/" e "/chat/:chatId" renderizam este mesmo componente, então o React
+  // reconcilia o ChatArea como a mesma instância ao navegar entre elas — sem uma
+  // key, o estado (streaming, bolha otimista) vazaria de uma conversa para outra e
+  // não seria descartado ao concluir o 1º envio. A key por conversa força a
+  // remontagem a cada troca de rota, garantindo estado isolado por conversa.
+  const { chatId } = useParams();
+  return <ChatArea key={chatId ?? "new"} />;
 };
 
 export default ChatPage;

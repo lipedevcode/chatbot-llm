@@ -1,5 +1,6 @@
 package com.chatbotllm.backend.security;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Dispatches internos do container (não requisições externas, que são
+                        // sempre REQUEST). Ao concluir uma resposta SSE (SseEmitter), o Spring
+                        // MVC faz um ASYNC dispatch de volta pela cadeia de filtros; como a app
+                        // é STATELESS, o SecurityContext já não está mais populado nessa thread,
+                        // e o AuthorizationFilter negaria o acesso (com a resposta já commitada,
+                        // gerando erro no log). Liberar ASYNC/ERROR evita essa reavaliação — a
+                        // requisição original (REQUEST) já foi autenticada pelo JwtAuthFilter.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
