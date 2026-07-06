@@ -153,7 +153,13 @@ const ChatArea = () => {
 };
 
 const ChatPage = () => {
-  return <ChatArea />;
+  // As rotas "/" e "/chat/:chatId" renderizam este mesmo componente, então o React
+  // reconcilia o ChatArea como a mesma instância ao navegar entre elas — sem uma
+  // key, o estado (streaming, bolha otimista) vazaria de uma conversa para outra e
+  // não seria descartado ao concluir o 1º envio. A key por conversa força a
+  // remontagem a cada troca de rota, garantindo estado isolado por conversa.
+  const { chatId } = useParams();
+  return <ChatArea key={chatId ?? "new"} />;
 };
 
 export default ChatPage;
