@@ -14,7 +14,8 @@ interface HistoryLinkProps {
 const extractTitle = (history: Prompt[]): string => {
   const firstPrompt = history[0]?.text;
   if (!firstPrompt) return "Nova conversa";
-  const userText = extractUserText(firstPrompt);
+  const userText = extractUserText(firstPrompt).trim();
+  if (!userText) return "Nova conversa";
   return userText.length > 28 ? userText.slice(0, 28) + "..." : userText;
 };
 

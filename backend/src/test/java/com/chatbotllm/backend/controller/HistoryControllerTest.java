@@ -31,7 +31,7 @@ class HistoryControllerTest {
 
     @Test
     void getHistoryShouldReturnHistoryDto() {
-        HistoryDto historyDto = new HistoryDto(1L, List.of());
+        HistoryDto historyDto = new HistoryDto(1L, "Título", List.of());
         when(historyService.getHistory(1L)).thenReturn(historyDto);
 
         ResponseEntity<Object> response = historyController.getHistory(1L);
@@ -44,7 +44,7 @@ class HistoryControllerTest {
 
     @Test
     void getAllHistoriesByUserShouldReturnAllHistories() {
-        List<HistoryDto> histories = List.of(new HistoryDto(1L, List.of()));
+        List<HistoryDto> histories = List.of(new HistoryDto(1L, "Título", List.of()));
         when(historyService.getAllHistoriesByUser()).thenReturn(histories);
 
         ResponseEntity<Object> response = historyController.getAllHistoriesByUser();

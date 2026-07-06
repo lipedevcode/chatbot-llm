@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import ErrorBanner from "../components/shared/ErrorBanner";
 import { HistoryLink } from "../components/history/HistoryLink";
+import ModelResponse from "../components/messages/ModelResponse";
 import { useProfile, useUpdateProfile } from "../queries/UserQueries";
 import { useFiles } from "../queries/FileQueries";
 import { useHistories } from "../queries/HistoryQueries";
@@ -234,13 +235,52 @@ const DocumentoModal = ({
   </div>
 );
 
+// Modal para visualizar o resumo completo do documento, renderizado em markdown.
+const ResumoModal = ({
+  filename,
+  resumo,
+  onClose,
+}: {
+  filename: string;
+  resumo: string | null;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+    <div className="bg-card rounded-2xl shadow-xl w-full max-w-3xl max-h-[70vh] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+        <p className="text-sm font-semibold text-foreground truncate">
+          {filename}
+        </p>
+        <button
+          onClick={onClose}
+          className="text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+          aria-label="Fechar"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {resumo ? (
+          <ModelResponse response={resumo} />
+        ) : (
+          <p className="text-sm text-foreground-secondary">
+            Sem resumo disponível para este documento.
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 const DocumentoCard = ({
   file,
   onVisualizar,
+  onVisualizarResumo,
   isLoadingPreview,
 }: {
   file: FileMeta;
   onVisualizar: (file: FileMeta) => void;
+  onVisualizarResumo: (file: FileMeta) => void;
   isLoadingPreview: boolean;
 }) => (
   <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm">
@@ -257,18 +297,28 @@ const DocumentoCard = ({
       {file.resumo ?? "Sem resumo disponível para este documento."}
     </p>
 
-    <button
-      onClick={() => onVisualizar(file)}
-      disabled={isLoadingPreview}
-      className="self-start flex items-center gap-1.5 text-xs font-semibold text-brown-medium hover:text-brown-dark transition-colors cursor-pointer disabled:opacity-50"
-    >
-      {isLoadingPreview ? (
-        <Loader2 size={13} className="animate-spin" />
-      ) : (
-        <Eye size={13} />
-      )}
-      Visualizar
-    </button>
+    <div className="flex flex-wrap items-center gap-4">
+      <button
+        onClick={() => onVisualizar(file)}
+        disabled={isLoadingPreview}
+        className="flex items-center gap-1.5 text-xs font-semibold text-brown-medium hover:text-brown-dark transition-colors cursor-pointer disabled:opacity-50"
+      >
+        {isLoadingPreview ? (
+          <Loader2 size={13} className="animate-spin" />
+        ) : (
+          <Eye size={13} />
+        )}
+        Visualizar PDF
+      </button>
+
+      <button
+        onClick={() => onVisualizarResumo(file)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-brown-medium hover:text-brown-dark transition-colors cursor-pointer"
+      >
+        <FileText size={13} />
+        Visualizar Resumo
+      </button>
+    </div>
   </div>
 );
 
@@ -279,6 +329,10 @@ const DocumentosSection = () => {
   );
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [resumoPreview, setResumoPreview] = useState<{
+    filename: string;
+    resumo: string | null;
+  } | null>(null);
 
   const abrirDocumento = async (file: FileMeta) => {
     setLoadingId(file.id);
@@ -298,6 +352,14 @@ const DocumentosSection = () => {
   const fecharDocumento = () => {
     if (preview) URL.revokeObjectURL(preview.url);
     setPreview(null);
+  };
+
+  const abrirResumo = (file: FileMeta) => {
+    setResumoPreview({ filename: file.filename, resumo: file.resumo });
+  };
+
+  const fecharResumo = () => {
+    setResumoPreview(null);
   };
 
   return (
@@ -333,6 +395,7 @@ const DocumentosSection = () => {
               key={file.id}
               file={file}
               onVisualizar={abrirDocumento}
+              onVisualizarResumo={abrirResumo}
               isLoadingPreview={loadingId === file.id}
             />
           ))}
@@ -344,6 +407,14 @@ const DocumentosSection = () => {
           filename={preview.filename}
           url={preview.url}
           onClose={fecharDocumento}
+        />
+      )}
+
+      {resumoPreview && (
+        <ResumoModal
+          filename={resumoPreview.filename}
+          resumo={resumoPreview.resumo}
+          onClose={fecharResumo}
         />
       )}
     </section>
@@ -383,6 +454,7 @@ const ConversasRecentesSection = () => {
           {recentes.map((history, i) => (
             <HistoryLink
               key={history.id ?? i}
+              title={history.title}
               history={history.prompts ?? []}
               id={history.id ?? i}
             />
